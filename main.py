@@ -33,6 +33,8 @@ async def on_message(message):
 
     # Procesa los comandos después de manejar los mensajes
     await bot.process_commands(message)
-
-# Agrega tu token de bot aquí
-bot.run(priv_token)
+token = os.getenv('priv_token')
+if token:
+    bot.run(token)
+else:
+    print("Token no encontrado.")
