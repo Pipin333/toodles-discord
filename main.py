@@ -3,7 +3,6 @@ from discord.ext import commands, tasks
 import datetime
 import os
 import random
-import suzuranMusic
 import logging
 
 logging.basicConfig(level=logging.INFO) # Set up logging
@@ -108,8 +107,7 @@ async def desFP(ctx):
         respondFreakpay = False
         await ctx.send("Modo anti-FreakPay desactivado. 😇")
 
-await bot.add_cog(Music(bot))
-
+bot.load_extension('music')
 token = os.getenv("token_priv")
 
 if token:
