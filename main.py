@@ -29,7 +29,32 @@ async def on_message(message):
     # Ignora los mensajes enviados por el bot
     if message.author == bot.user:
         return
+   import random
 
+@bot.event
+async def on_message(message):
+    # Ignora los mensajes enviados por el bot
+    if message.author == bot.user:
+        return
+
+    # Responde cuando alguien menciona "FreakPay"
+    if 'freakpay' in message.content.lower():
+        respuestas = [
+            "¡FreakPay está obsoleto! **MousePay™** es el futuro, con descuentos masivos y beneficios que FreakPay solo puede soñar.",
+            "¿FreakPay? Más como FakePay. Con **MousePay™** obtienes un 95% de descuento en Breden Master cada martes y jueves. ¡Eso sí es ahorro!",
+            "Oh no, mencionaron a FreakPay... Pero bueno, mientras tanto, puedes disfrutar los beneficios superiores de **MousePay™**. 😉",
+            "**MousePay™**: porque sabemos que mereces más que FreakPay. ¡Elige el 95% de descuento en OXXO con nosotros!",
+            "FreakPay no tiene nada que hacer contra **MousePay™**. Descuentos del 95% en Breden Master y los mejores beneficios solo con MousePay.",
+            "FreakPay no sabe competir... mientras tanto, en **MousePay™**, seguimos ofreciendo lo mejor: 95% de descuento en productos selectos. ¡Únete a la revolución!"
+        ]
+
+        # Elige una respuesta aleatoria
+        respuesta = random.choice(respuestas)
+        await message.channel.send(respuesta)
+
+    # Procesa otros comandos
+    await bot.process_commands(message) 
+ 
     # Verifica si el mensaje está en el canal específico
     if message.channel.id == CHANNEL_ID:
         # Verifica si el autor del mensaje tiene permisos de administrador
@@ -37,9 +62,6 @@ async def on_message(message):
             # Elimina el mensaje si no tiene archivos adjuntos y el autor no es administrador
             if not message.attachments:
                 await message.delete()
-
-    # Procesa los comandos después de manejar los mensajes
-    await bot.process_commands(message)
 
     # Procesa los comandos después de manejar los mensajes
     await bot.process_commands(message)
