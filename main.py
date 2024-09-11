@@ -4,7 +4,9 @@ import datetime
 import os
 import random
 import suzuranMusic
+import logging
 
+logging.basicConfig(level=logging.INFO) # Set up logging
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
