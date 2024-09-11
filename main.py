@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 import os
+import random
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -24,12 +25,12 @@ async def check_shutdown():
 async def on_ready():
     print(f'Conectado como {bot.user.name}')
     check_shutdown.start()
+    
 @bot.event
 async def on_message(message):
     # Ignora los mensajes enviados por el bot
     if message.author == bot.user:
         return
-   import random
 
 @bot.event
 async def on_message(message):
