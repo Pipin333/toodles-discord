@@ -24,12 +24,14 @@ async def on_message(message):
 
     # Verifica si el mensaje está en el canal específico
     if message.channel.id == CHANNEL_ID:
-        # Verifica si el autor del mensaje tiene el rol de administrador
-        is_admin = any(role.permissions.administrator for role in message.author.roles)
+        # Verifica si el autor del mensaje tiene permisos de administrador
+        if not message.author.guild_permissions.administrator:
+            # Elimina el mensaje si no tiene archivos adjuntos y el autor no es administrador
+            if not message.attachments:
+                await message.delete()
 
-        # Elimina el mensaje si no tiene archivos adjuntos y el autor no es un administrador
-        if not message.attachments and not is_admin:
-            await message.delete()
+    # Procesa los comandos después de manejar los mensajes
+    await bot.process_commands(message)
 
     # Procesa los comandos después de manejar los mensajes
     await bot.process_commands(message)
