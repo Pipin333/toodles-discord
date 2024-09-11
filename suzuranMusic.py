@@ -12,9 +12,9 @@ class Music(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    async def test(self,ctx):
+    async def test(self, ctx):
         """Bot message working/notWorking confirmation"""
-        await message.channel.send("message.channel.send")
+        await ctx.send("Works")
     
     @commands.command()
     async def join(self, ctx):
