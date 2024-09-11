@@ -107,7 +107,13 @@ async def desFP(ctx):
         respondFreakpay = False
         await ctx.send("Modo anti-FreakPay desactivado. 😇")
 
-suzuranMusic.setup(bot)
+bot.load_extension('suzuranMusic')
+
+try:
+    bot.load_extension('suzuranMusic')
+    print("suzuranMusic cog loaded successfully.")
+except Exception as e:
+    print(f"Failed to load suzuranMusic cog: {e}")
 
 token = os.getenv("token_priv")
 
