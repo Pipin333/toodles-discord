@@ -61,25 +61,34 @@ async def on_message(message):
             "FreakPay no sabe competir... mientras tanto, en **MousePay™**, seguimos ofreciendo lo mejor: 95% de descuento en productos selectos. ¡Únete a la revolución!"
         ]
 
-        # Bandera para controlar el modo de responder a FreakPay
+# Bandera para controlar el modo de responder a FreakPay
 respond_to_freakpay = False
 
+# Comando para activar el modo de respuesta
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def activar_freakpay(ctx):
     """Activa el modo para responder a menciones de FreakPay"""
     global respond_to_freakpay
-    respond_to_freakpay = True
-    await ctx.send("Modo anti-FreakPay activado. 😈")
+    if not respond_to_freakpay:
+        respond_to_freakpay = True
+        await ctx.send("Modo anti-FreakPay activado. 😈")
+    else:
+        await ctx.send("El modo anti-FreakPay ya está activado.")
 
+# Comando para desactivar el modo de respuesta
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def desactivar_freakpay(ctx):
     """Desactiva el modo para responder a menciones de FreakPay"""
     global respond_to_freakpay
-    respond_to_freakpay = False
-    await ctx.send("Modo anti-FreakPay desactivado. 😇")
+    if respond_to_freakpay:
+        respond_to_freakpay = False
+        await ctx.send("Modo anti-FreakPay desactivado. 😇")
+    else:
+        await ctx.send("El modo anti-FreakPay ya está desactivado.")
 
+# Evento que maneja los mensajes
 @bot.event
 async def on_message(message):
     global respond_to_freakpay
@@ -96,9 +105,9 @@ async def on_message(message):
             response = random.choice(respuestas)
             await message.channel.send(response)
 
-    # Procesa otros comandos
-    await bot.process_commands(message) 
- 
+    # Procesa los comandos después de manejar los mensajes
+    await bot.process_commands(message)
+    
     # Verifica si el mensaje está en el canal específico
     if message.channel.id == CHANNEL_ID:
         # Verifica si el autor del mensaje tiene permisos de administrador
@@ -118,3 +127,4 @@ if token:
     bot.run(token)
 else:
     print("Token no encontrado.")
+
