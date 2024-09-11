@@ -3,7 +3,7 @@ from discord.ext import commands, tasks
 import datetime
 import os
 import random
-#import suzuranMusic.py
+import suzuranMusic
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -115,6 +115,7 @@ async def desFP(ctx):
     else:
         await ctx.send("El modo anti-FreakPay ya está desactivado.")
 
+suzuranMusic.setup(bot)
 
 token = os.getenv("token_priv")
 
