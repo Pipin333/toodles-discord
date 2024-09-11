@@ -16,7 +16,7 @@ CHANNEL_ID = 1283061656817238027  # Reemplaza con el ID de tu canal
 async def check_shutdown():
     # Verifica la hora actual
     now = datetime.utcnow()
-    if now.hour == 4 and now.minute == 30:
+    if now.hour == 7 and now.minute == 30:
         print("Hora de apagarse. Apagando el bot...")
         await bot.close()
 
