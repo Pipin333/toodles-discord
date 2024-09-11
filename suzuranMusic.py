@@ -3,53 +3,59 @@ from discord.ext import commands
 import youtube_dl
 import os
 
-intents = discord.Intents.default()
-intents.message_content = True  # Enable message content intent
-bot = commands.Bot(command_prefix='!', intents=intents)
+# Define the command channel ID
+CHANNEL_ID_COMMANDS = 123456789012345678  # Replace with your commands channel ID
 
-# Ensure ffmpeg is installed for audio streaming
-youtube_dl.utils.bug_reports_message = lambda: ''
+# Music-related functions
+class Music(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
 
+    @commands.command()
+    async def join(self, ctx):
+        """Bot joins the voice channel"""
+        if ctx.author.voice:
+            channel = ctx.author.voice.channel
+            await channel.connect()
+        else:
+            await ctx.send("You're not connected to a voice channel!")
 
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user}')
+    @commands.command()
+    async def play(self, ctx, url):
+        """Play music in the voice channel"""
+        voice_client = ctx.voice_client
+        if not voice_client:
+            await ctx.send("I'm not connected to a voice channel!")
+            return
 
-# Join voice channel
-@bot.command()
-async def join(ctx):
-    if not ctx.message.author.voice:
-        await ctx.send("You're not connected to a voice channel.")
-        return
-    else:
-        channel = ctx.message.author.voice.channel
-    await channel.connect()
+        # Ensure the bot is in the correct channel
+        if ctx.channel.id != CHANNEL_ID_COMMANDS:
+            await ctx.send("Please use the commands channel to request songs.")
+            return
 
-# Play a song
-@bot.command()
-async def play(ctx, url):
-    server = ctx.message.guild
-    voice_channel = server.voice_client
+        ydl_opts = {
+            'format': 'bestaudio',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        }
 
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'quiet': True
-    }
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            url2 = info['formats'][0]['url']
+            voice_client.play(discord.FFmpegPCMAudio(url2))
 
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        url2 = info['formats'][0]['url']
-        voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg", source=url2))
+    @commands.command()
+    async def leave(self, ctx):
+        """Bot leaves the voice channel"""
+        voice_client = ctx.voice_client
+        if voice_client:
+            await voice_client.disconnect()
+        else:
+            await ctx.send("I'm not in a voice channel!")
 
-@bot.command()
-async def leave(ctx):
-    voice_client = ctx.message.guild.voice_client
-    if voice_client.is_connected():
-        await voice_client.disconnect()
-
-bot.run(os.getenv("DISCORD_TOKEN"))
+# Setup the cog
+def setup(bot):
+    bot.add_cog(Music(bot))
