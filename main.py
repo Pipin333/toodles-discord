@@ -33,8 +33,19 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Responde cuando alguien menciona "FreakPay"
-        respuestas = [
+    # Responde cuando alguien menciona "FreakPay"        
+    global respondFreakpay
+
+    # Ignora los mensajes enviados por el bot
+    if message.author == bot.user:
+        return
+
+    # Solo responde si el modo de tirarle mierda a FreakPay está activado
+    if respondFreakpay:
+        # Verifica si alguien menciona "FreakPay"
+        if "freakpay" in message.content.lower():
+            # Elige una respuesta aleatoria
+            respuestas = [
             "¿FreakPay? Mejor elijo MousePay™, al menos no te cobra hasta por respirar.",
             "FreakPay solo te da deudas, MousePay te da descuentos de verdad.",
             "Usar FreakPay es como tirar tu dinero a la basura, mejor usa MousePay™.",
@@ -61,18 +72,7 @@ async def on_message(message):
             "**MousePay™**: porque sabemos que mereces más que FreakPay. ¡Elige el 95% de descuento en OXXO con nosotros!",
             "FreakPay no tiene nada que hacer contra **MousePay™**. Descuentos del 95% en Breden Master y los mejores beneficios solo con MousePay.",
             "FreakPay no sabe competir... mientras tanto, en **MousePay™**, seguimos ofreciendo lo mejor: 95% de descuento en productos selectos. ¡Únete a la revolución!"
-        ]
-    global respondFreakpay
-
-    # Ignora los mensajes enviados por el bot
-    if message.author == bot.user:
-        return
-
-    # Solo responde si el modo de tirarle mierda a FreakPay está activado
-    if respondFreakpay:
-        # Verifica si alguien menciona "FreakPay"
-        if "freakpay" in message.content.lower():
-            # Elige una respuesta aleatoria
+            ]
             response = random.choice(respuestas)
             await message.channel.send(response)
 
