@@ -33,7 +33,7 @@ async def on_message(message):
 
     # Procesa los comandos después de manejar los mensajes
     await bot.process_commands(message)
-token = os.getenv('priv_token')
+token = os.getenv("token_priv")
 if token:
     bot.run(token)
     print("Bot funcional")
