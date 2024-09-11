@@ -26,12 +26,6 @@ async def check_shutdown():
 async def on_ready():
     print(f'Conectado como {bot.user.name}')
     check_shutdown.start()
-    
-@bot.event
-async def on_message(message):
-    # Ignora los mensajes enviados por el bot
-    if message.author == bot.user:
-        return
 
 @bot.event
 async def on_message(message):
@@ -87,9 +81,12 @@ async def on_message(message):
 
     # Procesa los comandos después de manejar los mensajes
     await bot.process_commands(message)
+    
+
+
 token = os.getenv("token_priv")
+
 if token:
     bot.run(token)
-    print("Bot funcional")
 else:
     print("Token no encontrado.")
