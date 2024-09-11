@@ -10,7 +10,9 @@ intents.message_content = True
 bot = commands.Bot(command_prefix='td?', intents=intents)
 
 # ID del canal específico
-CHANNEL_ID = 1283061656817238027  # Reemplaza con el ID de tu canal
+CHANNEL_ID_CLIPS = 1283061656817238027 # Reemplaza con el ID de tu canal
+
+respondFreakpay = False
 
 @tasks.loop(minutes=1)
 async def check_shutdown():
@@ -60,9 +62,41 @@ async def on_message(message):
             "FreakPay no tiene nada que hacer contra **MousePay™**. Descuentos del 95% en Breden Master y los mejores beneficios solo con MousePay.",
             "FreakPay no sabe competir... mientras tanto, en **MousePay™**, seguimos ofreciendo lo mejor: 95% de descuento en productos selectos. ¡Únete a la revolución!"
         ]
+    global respond_to_freakpay
 
-# Bandera para controlar el modo de responder a FreakPay
-respond_to_freakpay = False
+    # Ignora los mensajes enviados por el bot
+    if message.author == bot.user:
+        return
+
+    # Solo responde si el modo de tirarle mierda a FreakPay está activado
+    if respond_to_freakpay:
+        # Verifica si alguien menciona "FreakPay"
+        if "freakpay" in message.content.lower():
+            # Elige una respuesta aleatoria
+            response = random.choice(freakpay_responses)
+            await message.channel.send(response)
+
+    # Procesa los comandos después de manejar los mensajes
+    await bot.process_commands(message)
+
+# Reemplaza con tu token
+token = os.getenv("token_priv")
+if token:
+    bot.run(token)
+else:
+    print("Token no encontrado.")
+    
+    
+    # Verifica si el mensaje está en el canal específico
+    if message.channel.id == CHANNEL_ID_CLIPS:
+        # Verifica si el autor del mensaje tiene permisos de administrador
+        if not message.author.guild_permissions.administrator:
+            # Elimina el mensaje si no tiene archivos adjuntos y el autor no es administrador
+            if not message.attachments:
+                await message.delete()
+
+    # Procesa los comandos después de manejar los mensajes
+    await bot.process_commands(message)
 
 # Comando para activar el modo de respuesta
 @bot.command()
@@ -87,38 +121,6 @@ async def desactivar_freakpay(ctx):
         await ctx.send("Modo anti-FreakPay desactivado. 😇")
     else:
         await ctx.send("El modo anti-FreakPay ya está desactivado.")
-
-# Evento que maneja los mensajes
-@bot.event
-async def on_message(message):
-    global respond_to_freakpay
-
-    # Ignora los mensajes enviados por el bot
-    if message.author == bot.user:
-        return
-
-    # Solo responde si el modo de tirarle mierda a FreakPay está activado
-    if respond_to_freakpay:
-        # Verifica si alguien menciona "FreakPay"
-        if "freakpay" in message.content.lower():
-            # Elige una respuesta aleatoria
-            response = random.choice(respuestas)
-            await message.channel.send(response)
-
-    # Procesa los comandos después de manejar los mensajes
-    await bot.process_commands(message)
-    
-    # Verifica si el mensaje está en el canal específico
-    if message.channel.id == CHANNEL_ID:
-        # Verifica si el autor del mensaje tiene permisos de administrador
-        if not message.author.guild_permissions.administrator:
-            # Elimina el mensaje si no tiene archivos adjuntos y el autor no es administrador
-            if not message.attachments:
-                await message.delete()
-
-    # Procesa los comandos después de manejar los mensajes
-    await bot.process_commands(message)
-    
 
 
 token = os.getenv("token_priv")
