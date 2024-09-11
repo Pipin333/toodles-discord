@@ -36,5 +36,6 @@ async def on_message(message):
 token = os.getenv('priv_token')
 if token:
     bot.run(token)
+    print("Bot funcional")
 else:
     print("Token no encontrado.")
