@@ -3,7 +3,7 @@ from discord.ext import commands, tasks
 import datetime
 import os
 import random
-import suzuranMusic.py
+import suzuranMusic
 
 intents = discord.Intents.default()
 intents.messages = True
