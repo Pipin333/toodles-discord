@@ -62,18 +62,18 @@ async def on_message(message):
             "FreakPay no tiene nada que hacer contra **MousePay™**. Descuentos del 95% en Breden Master y los mejores beneficios solo con MousePay.",
             "FreakPay no sabe competir... mientras tanto, en **MousePay™**, seguimos ofreciendo lo mejor: 95% de descuento en productos selectos. ¡Únete a la revolución!"
         ]
-    global respond_to_freakpay
+    global respondFreakpay
 
     # Ignora los mensajes enviados por el bot
     if message.author == bot.user:
         return
 
     # Solo responde si el modo de tirarle mierda a FreakPay está activado
-    if respond_to_freakpay:
+    if respondFreakpay:
         # Verifica si alguien menciona "FreakPay"
         if "freakpay" in message.content.lower():
             # Elige una respuesta aleatoria
-            response = random.choice(freakpay_responses)
+            response = random.choice(respuestas)
             await message.channel.send(response)
 
     # Procesa los comandos después de manejar los mensajes
