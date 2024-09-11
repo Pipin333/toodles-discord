@@ -36,16 +36,11 @@ async def on_message(message):
 
     # Responde cuando alguien menciona "FreakPay"        
     global respondFreakpay
-
-    # Ignora los mensajes enviados por el bot
-    if message.author == bot.user:
-        return
-
-    # Solo responde si el modo de tirarle mierda a FreakPay está activado
     if respondFreakpay:
         # Verifica si alguien menciona "FreakPay"
         if "freakpay" in message.content.lower():
             # Elige una respuesta aleatoria
+            
             respuestas = [
             "¿FreakPay? Mejor elijo MousePay™, al menos no te cobra hasta por respirar.",
             "FreakPay solo te da deudas, MousePay te da descuentos de verdad.",
@@ -66,7 +61,7 @@ async def on_message(message):
             "No sé qué es peor, el tráfico o usar FreakPay. MousePay™ es la vía rápida.",
             "Si usas FreakPay, el único beneficiado es FreakPay. Con MousePay™, los beneficios son tuyos.",
             "Con FreakPay, siempre terminas pagando más de lo que planeaste. MousePay™ es justo y transparente.",
-            "FreakPay: porque pagar de más nunca pasa de moda... si no conoces MousePay™."
+            "FreakPay: porque pagar de más nunca pasa de moda... si no conoces MousePay™.",
             "¡FreakPay está obsoleto! **MousePay™** es el futuro, con descuentos masivos y beneficios que FreakPay solo puede soñar.",
             "¿FreakPay? Más como FakePay. Con **MousePay™** obtienes un 95% de descuento en Breden Master cada martes y jueves. ¡Eso sí es ahorro!",
             "Oh no, mencionaron a FreakPay... Pero bueno, mientras tanto, puedes disfrutar los beneficios superiores de **MousePay™**. 😉",
@@ -74,6 +69,7 @@ async def on_message(message):
             "FreakPay no tiene nada que hacer contra **MousePay™**. Descuentos del 95% en Breden Master y los mejores beneficios solo con MousePay.",
             "FreakPay no sabe competir... mientras tanto, en **MousePay™**, seguimos ofreciendo lo mejor: 95% de descuento en productos selectos. ¡Únete a la revolución!"
             ]
+            
             response = random.choice(respuestas)
             await message.channel.send(response)
 
@@ -100,8 +96,6 @@ async def actFP(ctx):
     if not respondFreakpay:
         respondFreakpay = True
         await ctx.send("Modo anti-FreakPay activado. 😈")
-    else:
-        await ctx.send("El modo anti-FreakPay ya está activado.")
 
 # Comando para desactivar el modo de respuesta
 @bot.command()
@@ -112,8 +106,6 @@ async def desFP(ctx):
     if respondFreakpay:
         respondFreakpay = False
         await ctx.send("Modo anti-FreakPay desactivado. 😇")
-    else:
-        await ctx.send("El modo anti-FreakPay ya está desactivado.")
 
 #suzuranMusic.setup(bot)
 
