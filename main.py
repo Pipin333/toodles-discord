@@ -9,6 +9,7 @@ logging.basicConfig(level=logging.INFO) # Set up logging
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
+intents.voice_states = True
 bot = commands.Bot(command_prefix='td?', intents=intents)
 
 # ID del canal específico
