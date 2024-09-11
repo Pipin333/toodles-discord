@@ -107,7 +107,7 @@ async def desFP(ctx):
         respondFreakpay = False
         await ctx.send("Modo anti-FreakPay desactivado. 😇")
 
-#suzuranMusic.setup(bot)
+suzuranMusic.setup(bot)
 
 token = os.getenv("token_priv")
 
