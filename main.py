@@ -7,9 +7,7 @@ import random
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
-
-# Inicializa el bot
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='td?', intents=intents)
 
 # ID del canal específico
 CHANNEL_ID = 1283061656817238027  # Reemplaza con el ID de tu canal
@@ -34,7 +32,6 @@ async def on_message(message):
         return
 
     # Responde cuando alguien menciona "FreakPay"
-    if 'freakpay' in message.content.lower():
         respuestas = [
             "¿FreakPay? Mejor elijo MousePay™, al menos no te cobra hasta por respirar.",
             "FreakPay solo te da deudas, MousePay te da descuentos de verdad.",
@@ -64,9 +61,40 @@ async def on_message(message):
             "FreakPay no sabe competir... mientras tanto, en **MousePay™**, seguimos ofreciendo lo mejor: 95% de descuento en productos selectos. ¡Únete a la revolución!"
         ]
 
-        # Elige una respuesta aleatoria
-        respuesta = random.choice(respuestas)
-        await message.channel.send(respuesta)
+        # Bandera para controlar el modo de responder a FreakPay
+respond_to_freakpay = False
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def activar_freakpay(ctx):
+    """Activa el modo para responder a menciones de FreakPay"""
+    global respond_to_freakpay
+    respond_to_freakpay = True
+    await ctx.send("Modo anti-FreakPay activado. 😈")
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def desactivar_freakpay(ctx):
+    """Desactiva el modo para responder a menciones de FreakPay"""
+    global respond_to_freakpay
+    respond_to_freakpay = False
+    await ctx.send("Modo anti-FreakPay desactivado. 😇")
+
+@bot.event
+async def on_message(message):
+    global respond_to_freakpay
+
+    # Ignora los mensajes enviados por el bot
+    if message.author == bot.user:
+        return
+
+    # Solo responde si el modo de tirarle mierda a FreakPay está activado
+    if respond_to_freakpay:
+        # Verifica si alguien menciona "FreakPay"
+        if "freakpay" in message.content.lower():
+            # Elige una respuesta aleatoria
+            response = random.choice(respuestas)
+            await message.channel.send(response)
 
     # Procesa otros comandos
     await bot.process_commands(message) 
