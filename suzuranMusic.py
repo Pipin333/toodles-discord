@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import youtube_dl
 import os
 
@@ -11,6 +11,11 @@ class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.command()
+    async def join(self,ctx):
+        """Bot message working/notWorking confirmation"""
+        await message.channel.send("message.channel.send")
+    
     @commands.command()
     async def join(self, ctx):
         """Bot joins the voice channel"""
