@@ -3,6 +3,11 @@ from discord.ext import commands, tasks
 import youtube_dl
 import os
 
+intents = discord.Intents.default()
+intents.messages = True
+intents.message_content = True
+bot = commands.Bot(command_prefix='td!', intents=intents)
+
 # Define the command channel ID
 CHANNEL_ID_COMMANDS =  1016494007683137546 # Replace with your commands channel ID
 
