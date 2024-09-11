@@ -93,11 +93,11 @@ async def on_message(message):
 # Comando para activar el modo de respuesta
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def activar_freakpay(ctx):
+async def actFP(ctx):
     """Activa el modo para responder a menciones de FreakPay"""
-    global respond_to_freakpay
-    if not respond_to_freakpay:
-        respond_to_freakpay = True
+    global respondFreakpay
+    if not respondFreakpay:
+        respondFreakpay = True
         await ctx.send("Modo anti-FreakPay activado. 😈")
     else:
         await ctx.send("El modo anti-FreakPay ya está activado.")
@@ -105,11 +105,11 @@ async def activar_freakpay(ctx):
 # Comando para desactivar el modo de respuesta
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def desactivar_freakpay(ctx):
+async def desFP(ctx):
     """Desactiva el modo para responder a menciones de FreakPay"""
-    global respond_to_freakpay
-    if respond_to_freakpay:
-        respond_to_freakpay = False
+    global respondFreakpay
+    if respondFreakpay:
+        respondFreakpay = False
         await ctx.send("Modo anti-FreakPay desactivado. 😇")
     else:
         await ctx.send("El modo anti-FreakPay ya está desactivado.")
