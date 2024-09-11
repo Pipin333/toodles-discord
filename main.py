@@ -109,7 +109,7 @@ async def desFP(ctx):
         await ctx.send("Modo anti-FreakPay desactivado. 😇")
 
 try:
-    bot.load_extension('suzuranMusic')
+    await bot.load_extension('suzuranMusic')
 except Exception as e:
     print(f"Error al cargar el cog de música: {e}")
     
