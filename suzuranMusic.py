@@ -1,15 +1,8 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 import youtube_dl
+import asyncio
 import os
-
-intents = discord.Intents.default()
-intents.messages = True
-intents.message_content = True
-bot = commands.Bot(command_prefix='td?', intents=intents)
-
-# Define the command channel ID
-CHANNEL_ID_COMMANDS =  1016494007683137546 # Replace with your commands channel ID
 
 # Music-related functions
 class Music(commands.Cog):
@@ -27,20 +20,16 @@ class Music(commands.Cog):
         if ctx.author.voice:
             channel = ctx.author.voice.channel
             await channel.connect()
+            await ctx.send(f"🎶 entranding a tocarles el hoyo")
         else:
-            await ctx.send("You're not connected to a voice channel!")
+            await ctx.send("que weai si no estai conectao a un canal ql")
 
     @commands.command()
     async def play(self, ctx, url):
         """Play music in the voice channel"""
         voice_client = ctx.voice_client
         if not voice_client:
-            await ctx.send("I'm not connected to a voice channel!")
-            return
-
-        # Ensure the bot is in the correct channel
-        if ctx.channel.id != CHANNEL_ID_COMMANDS:
-            await ctx.send("Please use the commands channel to request songs.")
+            await ctx.send("No ando conectao a ningún canal")
             return
 
         ydl_opts = {
@@ -56,6 +45,7 @@ class Music(commands.Cog):
             info = ydl.extract_info(url, download=False)
             url2 = info['formats'][0]['url']
             voice_client.play(discord.FFmpegPCMAudio(url2))
+            await ctx.send(f"tocandote **{info['title']}**")
 
     @commands.command()
     async def leave(self, ctx):
@@ -63,8 +53,9 @@ class Music(commands.Cog):
         voice_client = ctx.voice_client
         if voice_client:
             await voice_client.disconnect()
+            await ctx.send("noh vimo xao")
         else:
-            await ctx.send("I'm not in a voice channel!")
+            await ctx.send("no estiy en un canal de voz Einstein ")
 
 # Setup the cog
 def setup(bot):
