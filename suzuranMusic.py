@@ -4,7 +4,7 @@ import youtube_dl
 import os
 
 # Define the command channel ID
-CHANNEL_ID_COMMANDS =  1067451606578253824 # Replace with your commands channel ID
+CHANNEL_ID_COMMANDS =  1016494007683137546 # Replace with your commands channel ID
 
 @bot.command()
 @commands.has_permissions(administrator=True)
