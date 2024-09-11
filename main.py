@@ -12,6 +12,14 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 # ID del canal específico
 CHANNEL_ID = 1283061656817238027  # Reemplaza con el ID de tu canal
 
+@tasks.loop(minutes=1)
+async def check_shutdown():
+    # Verifica la hora actual
+    now = datetime.utcnow()
+    if now.hour == 4 and now.minute == 30:
+        print("Hora de apagarse. Apagando el bot...")
+        await bot.close()
+
 @bot.event
 async def on_ready():
     print(f'Conectado como {bot.user.name}')
