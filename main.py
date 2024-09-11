@@ -78,14 +78,6 @@ async def on_message(message):
 
     # Procesa los comandos después de manejar los mensajes
     await bot.process_commands(message)
-
-# Reemplaza con tu token
-token = os.getenv("token_priv")
-if token:
-    bot.run(token)
-else:
-    print("Token no encontrado.")
-    
     
     # Verifica si el mensaje está en el canal específico
     if message.channel.id == CHANNEL_ID_CLIPS:
