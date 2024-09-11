@@ -6,13 +6,15 @@ import os
 # Define the command channel ID
 CHANNEL_ID_COMMANDS =  1016494007683137546 # Replace with your commands channel ID
 
-@commands.command()
-async def test(self, ctx):
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def test(ctx):
     """Bot message working/notWorking confirmation"""
     await ctx.send("Works")
     
-@commands.command()
- async def join(self, ctx):
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def join(self, ctx):
     """Bot joins the voice channel"""
     await ctx.send(f"Works")
     if ctx.author.voice:
