@@ -73,8 +73,8 @@ class Music(commands.Cog):
          if ctx.voice_client:
            channel = ctx.author.voice.channel
            await channel.disconnect()
-           #await ctx.voice_client.disconnect()
-           #await ctx.send("Saliendo del canal de voz.")
+           await ctx.voice_client.disconnect()
+           await ctx.send("Saliendo del canal de voz.")
         else:
            await ctx.send("No estoy en ningún canal de voz.")
             
