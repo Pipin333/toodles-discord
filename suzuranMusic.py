@@ -66,6 +66,16 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Hubo un error al intentar reproducir el audio: {e}")
             print(f"Error al intentar reproducir el audio: {e}")
+
+
+    @commands.command()
+    async def leave(self, ctx):
+         if ctx.voice_client:
+           await ctx.voice_client.disconnect()
+           await ctx.send("Saliendo del canal de voz.")
+        else:
+           await ctx.send("No estoy en ningún canal de voz.")
+            
 # Setup the cog
 async def setup(bot):
     await bot.add_cog(Music(bot))
