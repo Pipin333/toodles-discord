@@ -122,7 +122,6 @@ async def main():
     else:
         print("Token no encontrado.")
 
-
-
 # Ejecuta el bot de manera asíncrona
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
