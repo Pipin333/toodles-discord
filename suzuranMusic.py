@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-import yt_dlp as youtube_dl
+from pytube import YouTube
 import asyncio
 
 # Music-related functions
@@ -31,7 +31,7 @@ class Music(commands.Cog):
     async def play(self, ctx, url):
         """Play music in the voice channel"""
         voice_client = ctx.voice_client
-    
+
         # Si el bot no está conectado a un canal de voz, conéctate
         if not voice_client:
             if ctx.author.voice:
@@ -41,29 +41,19 @@ class Music(commands.Cog):
             else:
                 await ctx.send("No estás conectado a un canal de voz.")
                 return
-    
+
         # Verifica si el bot ya está reproduciendo música
         if voice_client.is_playing():
             await ctx.send("Ya estoy tocando música.")
             return
-    
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': False,
-        }
-    
-       
+
         try:
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                if 'formats' in info:
-                    url2 = info['formats'][0]['url']
-                    print(f"URL de audio: {url2}")  # Verifica la URL
-                    source = discord.FFmpegPCMAudio(url2)
-                    voice_client.play(source)
-                    await ctx.send(f"Reproduciendo: **{info['title']}**")
-                else:
-                    await ctx.send("No se pudo obtener el audio de la URL proporcionada.")
+            yt = YouTube(url)
+            audio_stream = yt.streams.filter(only_audio=True).first()
+            audio_url = audio_stream.url
+            source = discord.FFmpegPCMAudio(audio_url)
+            voice_client.play(source)
+            await ctx.send(f"Reproduciendo: **{yt.title}**")
         except Exception as e:
             await ctx.send(f"Hubo un error al intentar reproducir el audio: {e}")
             print(f"Error al intentar reproducir el audio: {e}")
