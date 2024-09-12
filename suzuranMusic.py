@@ -58,7 +58,7 @@ class Music(commands.Cog):
                 info = ydl.extract_info(url, download=False)
                 if 'formats' in info:
                     url2 = info['formats'][0]['url']
-                    source = discord.FFmpegPCMAudio(url2, 'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='vn')
+                    source = discord.FFmpegPCMAudio(url2, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
                     voice_client.play(source)
                     await ctx.send(f"Reproduciendo: **{info['title']}**")
                 else:
