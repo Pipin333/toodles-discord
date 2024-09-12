@@ -1,23 +1,18 @@
 # Usa una imagen base de Python
 FROM python:3.11-slim
 
-# Instala ffmpeg y otras dependencias
+# Instala FFmpeg
 RUN apt-get update && \
-    apt-get install -y ffmpeg && \
-    apt-get clean
+    apt-get install -y ffmpeg
 
-# Establece el directorio de trabajo en el contenedor
+# Establece el directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos necesarios al contenedor
-COPY requirements.txt requirements.txt
+# Copia los archivos de tu proyecto
 COPY . .
 
 # Instala las dependencias
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
-# Expone el puerto (opcional, si tu bot usa un puerto específico)
-EXPOSE 80
-
-# Define el comando para ejecutar tu bot
+# Ejecuta el bot
 CMD ["python", "main.py"]
