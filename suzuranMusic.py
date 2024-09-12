@@ -31,7 +31,7 @@ class Music(commands.Cog):
     async def play(self, ctx, url):
         """Play music in the voice channel"""
         voice_client = ctx.voice_client
-
+    
         # Si el bot no está conectado a un canal de voz, conéctate
         if not voice_client:
             if ctx.author.voice:
@@ -41,17 +41,17 @@ class Music(commands.Cog):
             else:
                 await ctx.send("No estás conectado a un canal de voz.")
                 return
-
+    
         # Verifica si el bot ya está reproduciendo música
         if voice_client.is_playing():
             await ctx.send("Ya estoy tocando música.")
             return
-
+    
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,
         }
-
+    
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
