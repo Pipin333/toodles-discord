@@ -59,7 +59,7 @@ class Music(commands.Cog):
                 if 'formats' in info:
                     url2 = info['formats'][0]['url']
                     print(f"URL de audio: {url2}")  # Verifica la URL
-                    source = discord.FFmpegPCMAudio(url2, **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'})
+                    source = discord.FFmpegPCMAudio(url2)
                     voice_client.play(source)
                     await ctx.send(f"Reproduciendo: **{info['title']}**")
                 else:
