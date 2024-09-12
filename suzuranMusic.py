@@ -58,5 +58,5 @@ class Music(commands.Cog):
             await ctx.send("no estiy en un canal de voz Einstein ")
 
 # Setup the cog
-def setup(bot):
+async def setup(bot):
     await bot.add_cog(Music(bot))
