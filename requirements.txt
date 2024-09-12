@@ -3,3 +3,4 @@ youtube_dl
 aiohttp
 ffmpeg
 pynacl
+asyncio
