@@ -49,7 +49,7 @@ class Music(commands.Cog):
     
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'quiet': False,
         }
     
         try:
