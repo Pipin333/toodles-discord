@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
-import yt_dlp as youtube_dl  # Usa yt-dlp en lugar de youtube_dl
+import yt_dlp as youtube_dl
+import asyncio
 
 # Music-related functions
 class Music(commands.Cog):
@@ -18,7 +19,7 @@ class Music(commands.Cog):
         if ctx.voice_client:
             await ctx.send("Ya estoy en un canal de voz.")
             return
-    
+
         if ctx.author.voice:
             channel = ctx.author.voice.channel
             await channel.connect()
@@ -30,7 +31,7 @@ class Music(commands.Cog):
     async def play(self, ctx, url):
         """Play music in the voice channel"""
         voice_client = ctx.voice_client
-        
+
         # Si el bot no está conectado a un canal de voz, conéctate
         if not voice_client:
             if ctx.author.voice:
@@ -64,7 +65,7 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Hubo un error al intentar reproducir el audio: {e}")
             print(f"Error al intentar reproducir el audio: {e}")
-
+        
     @commands.command()
     async def leave(self, ctx):
         """Bot leaves the voice channel"""
@@ -73,9 +74,8 @@ class Music(commands.Cog):
             await voice_client.disconnect()
             await ctx.send("noh vimo xao")
         else:
-            await ctx.send("no estiy en un canal de voz Einstein ")
+            await ctx.send("No estoy en un canal de voz para desconectarme.")
 
 # Setup the cog
 async def setup(bot):
     await bot.add_cog(Music(bot))
-
