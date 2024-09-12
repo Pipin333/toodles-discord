@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 import yt_dlp as youtube_dl  # Usa yt-dlp en lugar de youtube_dl
-from discord import FFmpegPCMAudio
 import asyncio
 
 # Music-related functions
@@ -32,7 +31,6 @@ class Music(commands.Cog):
             await ctx.send("No ando conectao a ningún canal")
             return
 
-        # Verifica si ya se está reproduciendo audio
         if voice_client.is_playing():
             await ctx.send("Ya estoy tocando música.")
             return
@@ -46,7 +44,7 @@ class Music(commands.Cog):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 url2 = info['formats'][0]['url']
-                source = FFmpegPCMAudio(url2, **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'})
+                source = discord.FFmpegPCMAudio(url2, **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'})
                 voice_client.play(source)
                 await ctx.send(f"tocandote **{info['title']}**")
         except Exception as e:
