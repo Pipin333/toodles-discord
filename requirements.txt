@@ -1,5 +1,5 @@
 discord.py
-pytube
+yt_dlp
 aiohttp
 ffmpeg
 pynacl
