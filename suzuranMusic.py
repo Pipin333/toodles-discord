@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import yt_dlp as youtube_dl  # Usa yt-dlp en lugar de youtube_dl
+from discord import FFmpegPCMAudio
 import asyncio
 
 # Music-related functions
