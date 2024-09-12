@@ -59,4 +59,4 @@ class Music(commands.Cog):
 
 # Setup the cog
 def setup(bot):
-    bot.add_cog(Music(bot))
+    await bot.add_cog(Music(bot))
