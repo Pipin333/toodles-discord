@@ -25,22 +25,24 @@ class Music(commands.Cog):
             await ctx.send("que weai si no estai conectao a un canal ql")
 
     @commands.command()
+       @commands.command()
     async def play(self, ctx, url):
         """Play music in the voice channel"""
         voice_client = ctx.voice_client
         if not voice_client:
             await ctx.send("No ando conectao a ningún canal")
             return
-    
+
+        # Verifica si ya se está reproduciendo audio
         if voice_client.is_playing():
             await ctx.send("Ya estoy tocando música.")
             return
-    
+
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,
         }
-    
+
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -51,7 +53,7 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Hubo un error al intentar reproducir el audio: {e}")
             print(f"Error al intentar reproducir el audio: {e}")
-
+            
     @commands.command()
     async def leave(self, ctx):
         """Bot leaves the voice channel"""
