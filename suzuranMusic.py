@@ -1,8 +1,7 @@
 import discord
 from discord.ext import commands
-import youtube_dl
+import yt_dlp as youtube_dl  # Usa yt-dlp en lugar de youtube_dl
 import asyncio
-import os
 
 # Music-related functions
 class Music(commands.Cog):
@@ -31,7 +30,7 @@ class Music(commands.Cog):
         if not voice_client:
             await ctx.send("No ando conectao a ningún canal")
             return
-    
+
         ydl_opts = {
             'format': 'bestaudio',
             'postprocessors': [{
@@ -40,7 +39,7 @@ class Music(commands.Cog):
                 'preferredquality': '192',
             }],
         }
-    
+
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
