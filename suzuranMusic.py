@@ -25,7 +25,6 @@ class Music(commands.Cog):
             await ctx.send("que weai si no estai conectao a un canal ql")
 
     @commands.command()
-       @commands.command()
     async def play(self, ctx, url):
         """Play music in the voice channel"""
         voice_client = ctx.voice_client
