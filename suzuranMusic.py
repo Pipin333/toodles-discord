@@ -30,21 +30,22 @@ class Music(commands.Cog):
         if not voice_client:
             await ctx.send("No ando conectao a ningún canal")
             return
-
+    
+        if voice_client.is_playing():
+            await ctx.send("Ya estoy tocando música.")
+            return
+    
         ydl_opts = {
-            'format': 'bestaudio',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
+            'format': 'bestaudio/best',
+            'quiet': True,
         }
-
+    
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 url2 = info['formats'][0]['url']
-                voice_client.play(discord.FFmpegPCMAudio(url2))
+                source = FFmpegPCMAudio(url2, **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'})
+                voice_client.play(source)
                 await ctx.send(f"tocandote **{info['title']}**")
         except Exception as e:
             await ctx.send(f"Hubo un error al intentar reproducir el audio: {e}")
