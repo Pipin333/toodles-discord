@@ -71,8 +71,10 @@ class Music(commands.Cog):
     @commands.command()
     async def leave(self, ctx):
          if ctx.voice_client:
-           await ctx.voice_client.disconnect()
-           await ctx.send("Saliendo del canal de voz.")
+           channel = ctx.author.voice.channel
+           await channel.disconnect()
+           #await ctx.voice_client.disconnect()
+           #await ctx.send("Saliendo del canal de voz.")
         else:
            await ctx.send("No estoy en ningún canal de voz.")
             
