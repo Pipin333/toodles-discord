@@ -75,9 +75,6 @@ async def on_message(message):
             response = random.choice(respuestas)
             await message.channel.send(response)
 
-    # Procesa los comandos después de manejar los mensajes
-    await bot.process_commands(message)
-    
     # Verifica si el mensaje está en el canal específico
     if message.channel.id == CHANNEL_ID_CLIPS:
         # Verifica si el autor del mensaje tiene permisos de administrador
