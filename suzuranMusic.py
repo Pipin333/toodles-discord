@@ -25,27 +25,32 @@ class Music(commands.Cog):
             await ctx.send("que weai si no estai conectao a un canal ql")
 
     @commands.command()
-    async def play(self, ctx, url):
-        """Play music in the voice channel"""
-        voice_client = ctx.voice_client
-        if not voice_client:
-            await ctx.send("No ando conectao a ningún canal")
-            return
+   @commands.command()
+async def play(self, ctx, url):
+    """Play music in the voice channel"""
+    voice_client = ctx.voice_client
+    if not voice_client:
+        await ctx.send("No ando conectao a ningún canal")
+        return
 
-        ydl_opts = {
-            'format': 'bestaudio',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-        }
+    ydl_opts = {
+        'format': 'bestaudio',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+    }
 
+    try:
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             url2 = info['formats'][0]['url']
             voice_client.play(discord.FFmpegPCMAudio(url2))
             await ctx.send(f"tocandote **{info['title']}**")
+    except Exception as e:
+        await ctx.send(f"Hubo un error al intentar reproducir el audio: {e}")
+        print(f"Error al intentar reproducir el audio: {e}")
 
     @commands.command()
     async def leave(self, ctx):
