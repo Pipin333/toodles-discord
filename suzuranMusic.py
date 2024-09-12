@@ -14,18 +14,18 @@ class Music(commands.Cog):
         await ctx.send("Works")
     
     @commands.command()
-async def join(self, ctx):
-    """Bot joins the voice channel"""
-    if ctx.voice_client:
-        await ctx.send("Ya estoy en un canal de voz.")
-        return
-
-    if ctx.author.voice:
-        channel = ctx.author.voice.channel
-        await channel.connect()
-        await ctx.send("🎶 Entrando en el canal de voz.")
-    else:
-        await ctx.send("No estás conectado a un canal de voz.")
+    async def join(self, ctx):
+        """Bot joins the voice channel"""
+        if ctx.voice_client:
+            await ctx.send("Ya estoy en un canal de voz.")
+            return
+    
+        if ctx.author.voice:
+            channel = ctx.author.voice.channel
+            await channel.connect()
+            await ctx.send("🎶 Entrando en el canal de voz.")
+        else:
+            await ctx.send("No estás conectado a un canal de voz.")
 
     @commands.command()
     async def play(self, ctx, url):
