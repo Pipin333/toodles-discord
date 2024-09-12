@@ -108,15 +108,16 @@ async def desFP(ctx):
         respondFreakpay = False
         await ctx.send("Modo anti-FreakPay desactivado. 😇")
 
-try:
-    await bot.load_extension('suzuranMusic')
-except Exception as e:
-    print(f"Error al cargar el cog de música: {e}")
+async def main(): 
+    try:
+        await bot.load_extension('suzuranMusic')
+    except Exception as e:
+        print(f"Error al cargar el cog de música: {e}")
+        
+    token = os.getenv("token_priv")
     
-token = os.getenv("token_priv")
-
-if token:
-    bot.run(token)
-else:
-    print("Token no encontrado.")
+    if token:
+        bot.run(token)
+    else:
+        print("Token no encontrado.")
 
