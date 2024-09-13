@@ -26,14 +26,15 @@ class Music(commands.Cog):
         else:
             await ctx.send("No estás conectado a un canal de voz.")
     
+
     @commands.command()
     async def play(self, ctx, *, search: str):
         """Agrega una canción a la cola y empieza la reproducción si no se está reproduciendo ya"""
-        if not ctx.author.voice:  # Verificar si el usuario está en un canal de voz
+        if not ctx.author.voice:
             await ctx.send("Necesitas estar en un canal de voz para reproducir música.")
             return
 
-        if not ctx.voice_client:  # Conectarse al canal si el bot no está ya en un canal de voz
+        if not ctx.voice_client:
             channel = ctx.author.voice.channel
             self.voice_client = await channel.connect()
             await ctx.send("🎶 Conectando al canal de voz...")
@@ -43,11 +44,11 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True,  # Evitar listas de reproducción
+            'noplaylist': True,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
-                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
+                'preferredcodec': 'mp3',
+                'preferredquality': '320',
             }],
         }
 
@@ -59,13 +60,16 @@ class Music(commands.Cog):
                     song_info = info['entries'][0]
                     song_url = song_info['url']
                     song_title = song_info['title']
+                    song_duration = song_info['duration']  # Obtener duración
+
                     # Añadir la canción a la cola
-                    self.song_queue.append({'url': song_url, 'title': song_title})
+                    self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
+
                     await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
-                
+
                     # Si no hay ninguna canción reproduciéndose, empieza la reproducción
                     if not self.voice_client.is_playing() and not self.current_song:
-                        await self._play_song(ctx)
+                        await self.play_next(ctx)
                 else:
                     await ctx.send("No se encontró la canción.")
         except Exception as e:
@@ -85,20 +89,53 @@ class Music(commands.Cog):
         else:
             self.current_song = None
 
-    async def _play_next(self, ctx):
+    async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola"""
         if self.song_queue:
-            await self._play_song(ctx)
+            song = self.song_queue.pop(0)
+            song_url = song['url']
+            song_title = song['title']
+            song_duration = song['duration']  # Obtén la duración
+
+            # Actualizar la canción actual
+            self.current_song = {'title': song_title, 'duration': song_duration}
+
+            # Reproducción
+            source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
+            self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
+            await ctx.send(f"🎶 Reproduciendo: **{song_title}**")
         else:
             self.current_song = None
-            await ctx.send("No hay más canciones en la cola.")
-    
+            await ctx.send("La cola de canciones está vacía.")
+
+        @commands.command()
+        async def skip(self, ctx):
+            """Salta la canción actual"""
+            if self.voice_client and self.voice_client.is_playing():
+                self.voice_client.stop()  # Detener la canción actual
+                await ctx.send("⏭ Saltando canción.")
+            else:
+                await ctx.send("No hay ninguna canción reproduciéndose.")
+
+
     @commands.command()
-    async def skip(self, ctx):
-        """Salta la canción actual"""
-        if self.voice_client and self.voice_client.is_playing():
-            self.voice_client.stop()  # Detener la canción actual
-            await ctx.send("⏭ Saltando canción.")
+    async def np(self, ctx):
+        """Muestra la canción actual, el tiempo de reproducción y la duración total"""
+        if self.voice_client and self.voice_client.is_playing() and self.current_song:
+            # Obtener la duración actual (en segundos)
+            current_time = self.voice_client.source.readable_duration()  # Duración transcurrida
+
+            # Obtener la duración total de la canción
+            total_duration = self.voice_client.source.duration  # Duración total de la canción en segundos
+            total_minutes, total_seconds = divmod(int(total_duration), 60)
+            
+            # Calcular tiempo transcurrido
+            minutes, seconds = divmod(int(current_time), 60)
+
+            await ctx.send(
+                f"🎶 **Canción actual:** {self.current_song['title']} \n"
+                f"⏱ Tiempo: {minutes}:{seconds:02d} / {total_minutes}:{total_seconds:02d}"
+            )
         else:
             await ctx.send("No hay ninguna canción reproduciéndose.")
 
@@ -239,6 +276,7 @@ class Music(commands.Cog):
     "`td?help` - Muestra este mensaje.\n"
     "`td?join` - Conecta el bot al canal de voz.\n"
     "`td?play <título>` - Agrega una canción a la cola y empieza a reproducir si no hay ninguna canción en curso.\n"
+    "`td?np` - Muestra la canción actual y el tiempo de reproducción.\n"  # Nueva línea
     "`td?queue` - Muestra la cola actual de canciones.\n"
     "`td?qAdd [posición] <título>` - Agrega una canción a una posición específica en la cola.\n"
     "`td?qMove <índice actual> <nuevo índice>` - Mueve una canción a una nueva posición en la cola.\n"  # Nueva línea
