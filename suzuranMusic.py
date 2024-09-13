@@ -37,10 +37,9 @@ class Music(commands.Cog):
         else:
             await ctx.send("No estás conectado a un canal de voz.")
 
-    @commands.command()
-    async def play(self, ctx, url):
-        """Play music in the voice channel or add to queue if already playing"""
-        await self.ensure_queue(ctx)  # Asegura que exista una cola para el servidor
+      @commands.command()
+    async def play(self, ctx, *, search_term):
+        """Play music in the voice channel"""
         voice_client = ctx.voice_client
 
         # Si el bot no está conectado a un canal de voz, conéctate
@@ -53,6 +52,11 @@ class Music(commands.Cog):
                 await ctx.send("No estás conectado a un canal de voz.")
                 return
 
+        # Verifica si el bot ya está reproduciendo música
+        if voice_client.is_playing():
+            await ctx.send("Ya estoy tocando música.")
+            return
+
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': False,
@@ -61,24 +65,84 @@ class Music(commands.Cog):
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                if 'formats' in info:
-                    song_url = info['formats'][0]['url']
-                    title = info['title']
-                    
-                    # Agregar canción a la cola
-                    self.song_queue[ctx.guild.id].append((song_url, title))
-                    await ctx.send(f"🎶 **{title}** añadida a la cola.")
-
-                    # Si no hay ninguna canción reproduciéndose, inicia la reproducción
-                    if not voice_client.is_playing():
-                        await self.play_next(ctx)
+                # Si el input no es una URL, lo trataremos como una búsqueda
+                if not search_term.startswith('http'):
+                    await ctx.send(f"Buscando: **{search_term}** en YouTube...")
+                    search_results = ydl.extract_info(f"ytsearch:{search_term}", download=False)
+                    if search_results['entries']:
+                        info = search_results['entries'][0]  # Obtiene el primer resultado
+                    else:
+                        await ctx.send("No se encontraron resultados.")
+                        return
                 else:
-                    await ctx.send("No se pudo obtener el audio de la URL proporcionada.")
+                    info = ydl.extract_info(search_term, download=False)
+
+                if 'formats' in info:
+                    url2 = info['formats'][0]['url']
+                    source = discord.FFmpegPCMAudio(url2, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
+                    voice_client.play(source)
+                    await ctx.send(f"Reproduciendo: **{info['title']}**")
+                else:
+                    await ctx.send("No se pudo obtener el audio de la URL o la búsqueda proporcionada.")
         except Exception as e:
             await ctx.send(f"Hubo un error al intentar reproducir el audio: {e}")
             print(f"Error al intentar reproducir el audio: {e}")
 
+    @commands.command()
+    async def search(self, ctx, *, search_term):
+        """Search for a song by name and provide a list of options to play"""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': False,
+            'noplaylist': True,
+        }
+
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                await ctx.send(f"Buscando: **{search_term}** en YouTube...")
+                search_results = ydl.extract_info(f"ytsearch:{search_term}", download=False)
+
+                if search_results['entries']:
+                    self.search_results[ctx.author.id] = search_results['entries'][:5]  # Almacena los primeros 5 resultados
+                    result_message = "\n".join([f"{idx + 1}. {entry['title']}" for idx, entry in enumerate(self.search_results[ctx.author.id])])
+                    await ctx.send(f"Se encontraron estos resultados:\n{result_message}\nEscribe `select <número>` para elegir una canción.")
+                else:
+                    await ctx.send("No se encontraron resultados.")
+        except Exception as e:
+            await ctx.send(f"Hubo un error al intentar buscar la canción: {e}")
+            print(f"Error al intentar buscar la canción: {e}")
+
+    @commands.command()
+    async def select(self, ctx, number: int):
+        """Select a song from the search results and play it"""
+        if ctx.author.id not in self.search_results or not self.search_results[ctx.author.id]:
+            await ctx.send("No hay resultados de búsqueda activos. Usa `!search <nombre>` para buscar canciones.")
+            return
+
+        if number < 1 or number > len(self.search_results[ctx.author.id]):
+            await ctx.send(f"Por favor selecciona un número válido entre 1 y {len(self.search_results[ctx.author.id])}.")
+            return
+
+        selected_entry = self.search_results[ctx.author.id][number - 1]
+        voice_client = ctx.voice_client
+
+        if not voice_client:
+            if ctx.author.voice:
+                channel = ctx.author.voice.channel
+                voice_client = await channel.connect()
+                await ctx.send("🎶 Entrando en el canal de voz.")
+            else:
+                await ctx.send("No estás conectado a un canal de voz.")
+                return
+
+        try:
+            url2 = selected_entry['formats'][0]['url']
+            source = discord.FFmpegPCMAudio(url2, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
+            voice_client.play(source)
+            await ctx.send(f"Reproduciendo: **{selected_entry['title']}**")
+        except Exception as e:
+            await ctx.send(f"Hubo un error al intentar reproducir la canción seleccionada: {e}")
+            print(f"Error al intentar reproducir la canción seleccionada: {e}")
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola si hay alguna."""
         await self.ensure_queue(ctx)
