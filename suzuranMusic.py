@@ -51,12 +51,18 @@ class Music(commands.Cog):
                 await ctx.send("🎶 Entrando en el canal de voz.")
             else:
                 await ctx.send("No estás conectado a un canal de voz.")
+
+    @commands.command()
+    async def delete_test(self, ctx):
+    """Test if the bot can delete a message"""
         try:
             await ctx.message.delete()
+            await ctx.send("Mensaje eliminado.")
         except discord.Forbidden:
             await ctx.send("No tengo permisos para borrar mensajes.")
         except discord.HTTPException as e:
-            print(f"Error al borrar el mensaje: {e}")
+            await ctx.send(f"Error al intentar eliminar el mensaje: {e}")
+
 
     @commands.command()
     async def play(self, ctx, *, search: str):
