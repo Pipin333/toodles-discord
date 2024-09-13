@@ -151,7 +151,7 @@ class Music(commands.Cog):
             removed_song = self.song_queue.pop(index - 1)
             await ctx.send(f"🎶 Canción eliminada de la cola: **{removed_song}**")
         else:
-            await ctx.send("Índice fuera de rango. Usa `!queue` para ver la cola actual.")
+            await ctx.send("Índice fuera de rango. Usa `td?queue` para ver la cola actual.")
     
     @commands.command()
     async def qClear(self, ctx):
@@ -170,7 +170,7 @@ class Music(commands.Cog):
         else:
             await ctx.send("No estoy en ningún canal de voz.")
     
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=30)
     async def check_inactivity(self):
         """Desconecta el bot si no hay actividad y no hay usuarios en el canal de voz"""
         for vc in self.bot.voice_clients:
