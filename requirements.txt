@@ -1,6 +1,5 @@
 discord.py
 yt_dlp
 aiohttp
-ffmpeg
 pynacl
 asyncio
