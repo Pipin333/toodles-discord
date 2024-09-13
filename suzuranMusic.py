@@ -87,7 +87,8 @@ class Music(commands.Cog):
             voice_client = ctx.voice_client
             song_url, title = self.song_queue[ctx.guild.id].pop(0)
 
-            source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
+            FFMPEG_PATH = '/usr/bin/ffmpeg'
+            source = discord.FFmpegPCMAudio(audio_url, executable=FFMPEG_PATH, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
             voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
             await ctx.send(f"🎶 Reproduciendo: **{title}**")
         else:
