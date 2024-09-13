@@ -29,8 +29,11 @@ class Music(commands.Cog):
     @commands.command()
     async def play(self, ctx, *, search: str):
         """Agrega una canción a la cola y empieza la reproducción si no se está reproduciendo ya"""
-        if not self.voice_client:
-            await ctx.invoke(self.join)  # El bot se conecta al canal de voz si no está conectado
+         if not ctx.voice_client:
+                    channel = ctx.author.voice.channel
+                    self.voice_client = await channel.connect()
+                    await ctx.send("🎶 Conectando al canal de voz...")
+
         
         # Añadir la canción a la cola
         self.song_queue.append(search)
