@@ -43,15 +43,17 @@ class Music(commands.Cog):
         """Bot joins the voice channel"""
         if ctx.voice_client:
             await ctx.send("Ya estoy en un canal de voz.")
+            await ctx.message.delete()
             return
 
         if ctx.author.voice:
             channel = ctx.author.voice.channel
             self.voice_client = await channel.connect()
             await ctx.send("🎶 Entrando en el canal de voz.")
+            await ctx.message.delete()
         else:
             await ctx.send("No estás conectado a un canal de voz.")
-    
+            await ctx.message.delete()    
 
     @commands.command()
     async def play(self, ctx, *, search: str):
