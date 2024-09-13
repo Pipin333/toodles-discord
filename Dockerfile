@@ -1,9 +1,10 @@
 # Usa una imagen base de Python
 FROM python:3.11-slim
 
-# Instala FFmpeg
+# Instala FFmpeg y muestra su version para asegurar su correcta instalacion
 RUN apt-get update && \
-    apt-get install -y ffmpeg
+    apt-get install -y ffmpeg && \
+    ffmpeg -version
 
 # Establece el directorio de trabajo
 WORKDIR /app
