@@ -48,7 +48,7 @@ class Music(commands.Cog):
 
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'quiet': False,
             'noplaylist': True,  # Para evitar descargar listas de reproducción
         }
 
@@ -73,6 +73,22 @@ class Music(commands.Cog):
             await ctx.send("Saliendo del canal de voz.")
         else:
             await ctx.send("No estoy en ningún canal de voz.")
+
+    @tasks.loop(seconds=60)
+    async def check_inactivity(self):
+        """Revisa periódicamente si el bot está inactivo o si el canal de voz está vacío"""
+        for vc in self.bot.voice_clients:
+            if not vc.is_playing() and len(vc.channel.members) == 1:  # Solo el bot en el canal
+                await vc.disconnect()
+                print(f"Desconectado de {vc.channel} por inactividad.")
+            elif not vc.is_playing() and vc.idle_time >= self.inactivity_timeout:
+                await vc.disconnect()
+                print(f"Desconectado de {vc.channel} por inactividad.")
+
+    @check_inactivity.before_loop
+    async def before_check_inactivity(self):
+        """Espera hasta que el bot esté listo antes de empezar a verificar la inactividad"""
+        await self.bot.wait_until_ready()
 
 # Setup the cog
 async def setup(bot):
