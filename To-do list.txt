@@ -1,7 +1,7 @@
-Implementacion a spotify
-Implementacion a listas
-Mejorar interfaz de usuario
-Funcion ver cola
-Eliminar mensaje de autor
-Eliminar canciones de cola
-Mover canciones de orden
+Implementacion a spotify       // 2 personas
+Implementacion a listas        // Santiago
+Mejorar interfaz de usuario    // Santiago 
+Funcion ver cola               // Miki
+Eliminar mensaje de autor      // Santiago
+Eliminar canciones de cola     // Miki
+Mover canciones de orden       // Miki
