@@ -11,6 +11,31 @@ class Music(commands.Cog):
         self.voice_client = None  # Conexión de voz del bot
         self.play_next_song = asyncio.Event()  # Evento para gestionar la reproducción de la siguiente canción
         self.check_inactivity.start()  # Iniciar la tarea de verificación de inactividad
+        self.start_time = None  # Variable para registrar el inicio de la canción
+
+
+
+    @commands.command()
+    async def help(self, ctx):
+        """Muestra una lista de comandos disponibles"""
+        help_message = (
+    "**Comandos de Toodles Music:**\n"
+    "`td?help` - Muestra este mensaje.\n"
+    "`td?join` - Conecta el bot al canal de voz.\n"
+    "`td?play <título>` - Agrega una canción a la cola y empieza a reproducir si no hay ninguna canción en curso.\n"
+    "`td?np` - Muestra la canción actual y el tiempo de reproducción.\n"  # Nueva línea
+    "`td?queue` - Muestra la cola actual de canciones.\n"
+    "`td?qAdd [posición] <título>` - Agrega una canción a una posición específica en la cola.\n"
+    "`td?qMove <índice actual> <nuevo índice>` - Mueve una canción a una nueva posición en la cola.\n"  # Nueva línea
+    "`td?qRemove <índice>` - Elimina una canción de la cola por su índice.\n"
+    "`td?qClear` - Limpia la cola de canciones.\n"
+    "`td?skip` - Salta la canción actual.\n"
+    "`td?pause` - Pausa la canción actual.\n"
+    "`td?resume` - Reanuda la canción pausada.\n"
+    "`td?stop` - Detiene la canción actual y limpia la cola.\n"
+    "`td?leave` - Desconecta el bot del canal de voz.\n"
+)
+        await ctx.send(help_message)
     
     @commands.command()
     async def join(self, ctx):
@@ -90,23 +115,23 @@ class Music(commands.Cog):
             self.current_song = None
 
     async def play_next(self, ctx):
-        """Reproduce la siguiente canción en la cola"""
         if self.song_queue:
             song = self.song_queue.pop(0)
             song_url = song['url']
             song_title = song['title']
-            song_duration = song['duration']  # Obtén la duración
+            song_duration = song['duration']
 
-            # Actualizar la canción actual
+            # Actualizar la canción actual y registrar la hora de inicio
             self.current_song = {'title': song_title, 'duration': song_duration}
+            self.start_time = time.time()
 
-            # Reproducción
             source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
             self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
             await ctx.send(f"🎶 Reproduciendo: **{song_title}**")
         else:
             self.current_song = None
             await ctx.send("La cola de canciones está vacía.")
+
 
         @commands.command()
         async def skip(self, ctx):
@@ -120,21 +145,17 @@ class Music(commands.Cog):
 
     @commands.command()
     async def np(self, ctx):
-        """Muestra la canción actual, el tiempo de reproducción y la duración total"""
-        if self.voice_client and self.voice_client.is_playing() and self.current_song:
-            # Obtener la duración actual (en segundos)
-            current_time = self.voice_client.source.readable_duration()  # Duración transcurrida
-
-            # Obtener la duración total de la canción
-            total_duration = self.voice_client.source.duration  # Duración total de la canción en segundos
-            total_minutes, total_seconds = divmod(int(total_duration), 60)
-            
-            # Calcular tiempo transcurrido
-            minutes, seconds = divmod(int(current_time), 60)
+        """Muestra la canción actual y el tiempo transcurrido"""
+        if self.current_song and self.start_time:
+            elapsed_time = time.time() - self.start_time
+            elapsed_minutes, elapsed_seconds = divmod(int(elapsed_time), 60)
+            total_duration = self.current_song['duration']
+            total_minutes, total_seconds = divmod(total_duration, 60)
 
             await ctx.send(
-                f"🎶 **Canción actual:** {self.current_song['title']} \n"
-                f"⏱ Tiempo: {minutes}:{seconds:02d} / {total_minutes}:{total_seconds:02d}"
+                f"🎶 Ahora suena: **{self.current_song['title']}**\n"
+                f"⏱ Tiempo transcurrido: {elapsed_minutes}:{elapsed_seconds:02d} / "
+                f"{total_minutes}:{total_seconds:02d}"
             )
         else:
             await ctx.send("No hay ninguna canción reproduciéndose.")
@@ -268,27 +289,6 @@ class Music(commands.Cog):
         """Espera hasta que el bot esté listo antes de empezar a verificar la inactividad"""
         await self.bot.wait_until_ready()
 
-    @commands.command()
-    async def help(self, ctx):
-        """Muestra una lista de comandos disponibles"""
-        help_message = (
-    "**Comandos de Toodles Music:**\n"
-    "`td?help` - Muestra este mensaje.\n"
-    "`td?join` - Conecta el bot al canal de voz.\n"
-    "`td?play <título>` - Agrega una canción a la cola y empieza a reproducir si no hay ninguna canción en curso.\n"
-    "`td?np` - Muestra la canción actual y el tiempo de reproducción.\n"  # Nueva línea
-    "`td?queue` - Muestra la cola actual de canciones.\n"
-    "`td?qAdd [posición] <título>` - Agrega una canción a una posición específica en la cola.\n"
-    "`td?qMove <índice actual> <nuevo índice>` - Mueve una canción a una nueva posición en la cola.\n"  # Nueva línea
-    "`td?qRemove <índice>` - Elimina una canción de la cola por su índice.\n"
-    "`td?qClear` - Limpia la cola de canciones.\n"
-    "`td?skip` - Salta la canción actual.\n"
-    "`td?pause` - Pausa la canción actual.\n"
-    "`td?resume` - Reanuda la canción pausada.\n"
-    "`td?stop` - Detiene la canción actual y limpia la cola.\n"
-    "`td?leave` - Desconecta el bot del canal de voz.\n"
-)
-        await ctx.send(help_message)
 
 # Setup the cog
 async def setup(bot):
