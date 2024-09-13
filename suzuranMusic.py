@@ -3,6 +3,8 @@ from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio
 
+notification_channel_id = 1016494007683137546  # Reemplaza con el ID de tu canal
+
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -121,7 +123,7 @@ class Music(commands.Cog):
         else:
             await ctx.send("No estoy en ningún canal de voz.")
 
-    notification_channel_id = 1016494007683137546  # Reemplaza con el ID de tu canal
+
     @tasks.loop(seconds=30)
     async def check_inactivity(self):
         """Revisa periódicamente si el bot está inactivo o si el canal de voz está vacío"""
