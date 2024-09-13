@@ -27,22 +27,24 @@ class Music(commands.Cog):
             await ctx.send("No estás conectado a un canal de voz.")
     
     @commands.command()
-    async def play(self, ctx, *, search: str):
-        """Agrega una canción a la cola y empieza la reproducción si no se está reproduciendo ya"""
-         if not ctx.voice_client:
-                    channel = ctx.author.voice.channel
-                    self.voice_client = await channel.connect()
-                    await ctx.send("🎶 Conectando al canal de voz...")
+async def play(self, ctx, *, search: str):
+    """Agrega una canción a la cola y empieza la reproducción si no se está reproduciendo ya"""
+    if not ctx.author.voice:  # Verificar si el usuario está en un canal de voz
+        await ctx.send("Necesitas estar en un canal de voz para reproducir música.")
+        return
 
-        
-        # Añadir la canción a la cola
-        self.song_queue.append(search)
-        await ctx.send(f"🎶 Canción añadida a la cola: **{search}**")
-        
-        # Si no hay ninguna canción reproduciéndose, empieza la reproducción
-        if not self.voice_client.is_playing() and not self.current_song:
-            await self.play_next(ctx)
-    
+    if not ctx.voice_client:  # Conectarse al canal si el bot no está ya en un canal de voz
+        channel = ctx.author.voice.channel
+        self.voice_client = await channel.connect()
+        await ctx.send("🎶 Conectando al canal de voz...")
+
+    # Añadir la canción a la cola
+    self.song_queue.append(search)
+    await ctx.send(f"🎶 Canción añadida a la cola: **{search}**")
+
+    # Si no hay ninguna canción reproduciéndose, empieza la reproducción
+    if not self.voice_client.is_playing() and not self.current_song:
+        await self.play_next(ctx)
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola"""
         if self.song_queue:
