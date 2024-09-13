@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
-import yt_dlp as youtube_dl  # Usa yt-dlp en lugar de pytube
-import asyncio
+import yt_dlp as youtube_dl
 
 # Music-related functions
 class Music(commands.Cog):
@@ -12,7 +11,7 @@ class Music(commands.Cog):
     async def test(self, ctx):
         """Bot message working/notWorking confirmation"""
         await ctx.send("Works")
-    
+
     @commands.command()
     async def join(self, ctx):
         """Bot joins the voice channel"""
@@ -67,16 +66,14 @@ class Music(commands.Cog):
             await ctx.send(f"Hubo un error al intentar reproducir el audio: {e}")
             print(f"Error al intentar reproducir el audio: {e}")
 
-
     @commands.command()
     async def leave(self, ctx):
-         if ctx.voice_client:
-           #channel = ctx.author.voice.channel
-           await channel.disconnect()
-           await ctx.send("Saliendo del canal de voz.")
+        if ctx.voice_client:
+            await ctx.voice_client.disconnect()
+            await ctx.send("Saliendo del canal de voz.")
         else:
-           await ctx.send("No estoy en ningún canal de voz.")
-            
+            await ctx.send("No estoy en ningún canal de voz.")
+
 # Setup the cog
 async def setup(bot):
     await bot.add_cog(Music(bot))
