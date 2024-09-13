@@ -122,6 +122,42 @@ class Music(commands.Cog):
             await ctx.send("🛑 Canción detenida y cola limpiada.")
         else:
             await ctx.send("No hay ninguna canción reproduciéndose.")
+
+    @commands.command()
+    async def queue(self, ctx):
+        """Muestra la cola actual de canciones"""
+        if self.song_queue:
+            queue_list = "\n".join(f"{idx + 1}. {song}" for idx, song in enumerate(self.song_queue))
+            await ctx.send(f"🎵 Cola actual:\n{queue_list}")
+        else:
+            await ctx.send("La cola de canciones está vacía.")
+    
+    @commands.command()
+    async def qAdd(self, ctx, position: int = None, *, search: str):
+        """Agrega una canción a una posición específica en la cola"""
+        if position is None or position > len(self.song_queue):
+            # Añadir la canción al final de la cola si no se especifica posición o si la posición es mayor que la cola actual
+            self.song_queue.append(search)
+            await ctx.send(f"🎶 Canción añadida al final de la cola: **{search}**")
+        else:
+            # Insertar la canción en la posición especificada (1-basado)
+            self.song_queue.insert(position - 1, search)
+            await ctx.send(f"🎶 Canción añadida a la posición {position} en la cola: **{search}**")
+    
+    @commands.command()
+    async def qRemove(self, ctx, index: int):
+        """Elimina una canción de la cola por su índice"""
+        if 1 <= index <= len(self.song_queue):
+            removed_song = self.song_queue.pop(index - 1)
+            await ctx.send(f"🎶 Canción eliminada de la cola: **{removed_song}**")
+        else:
+            await ctx.send("Índice fuera de rango. Usa `!queue` para ver la cola actual.")
+    
+    @commands.command()
+    async def qClear(self, ctx):
+        """Limpia la cola de canciones"""
+        self.song_queue.clear()
+        await ctx.send("🗑 Cola de canciones limpiada.")
     
     @commands.command()
     async def leave(self, ctx):
@@ -146,6 +182,26 @@ class Music(commands.Cog):
     async def before_check_inactivity(self):
         """Espera hasta que el bot esté listo antes de empezar a verificar la inactividad"""
         await self.bot.wait_until_ready()
+
+     @commands.command()
+    async def help(self, ctx):
+        """Muestra una lista de comandos disponibles"""
+        help_message = (
+            "**Comandos de Toodles Music:**\n"
+            "`td?help` - Muestra este mensaje.\n"
+            "`td?join` - Conecta el bot al canal de voz.\n"
+            "`td?play <título>` - Agrega una canción a la cola y empieza a reproducir si no hay ninguna canción en curso.\n"
+            "`td?queue` - Muestra la cola actual de canciones.\n"
+            "`td?qAdd [posición] <título>` - Agrega una canción a una posición específica en la cola.\n"
+            "`td?qRemove <índice>` - Elimina una canción de la cola por su índice.\n"
+            "`td?qClear` - Limpia la cola de canciones.\n"
+            "`td?skip` - Salta la canción actual.\n"
+            "`td?pause` - Pausa la canción actual.\n"
+            "`td?resume` - Reanuda la canción pausada.\n"
+            "`td?stop` - Detiene la canción actual y limpia la cola.\n"
+            "`td?leave` - Desconecta el bot del canal de voz.\n"
+        )
+        await ctx.send(help_message)
 
 # Setup the cog
 async def setup(bot):
