@@ -32,12 +32,12 @@ class Music(commands.Cog):
         if not ctx.author.voice:  # Verificar si el usuario está en un canal de voz
             await ctx.send("Necesitas estar en un canal de voz para reproducir música.")
             return
-    
+
         if not ctx.voice_client:  # Conectarse al canal si el bot no está ya en un canal de voz
             channel = ctx.author.voice.channel
             self.voice_client = await channel.connect()
             await ctx.send("🎶 Conectando al canal de voz...")
-    
+
         # Buscar información de la canción
         ydl_opts = {
             'format': 'bestaudio/best',
@@ -50,7 +50,7 @@ class Music(commands.Cog):
                 'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
             }],
         }
-    
+
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"ytsearch:{search}", download=False)
@@ -65,44 +65,34 @@ class Music(commands.Cog):
                 
                     # Si no hay ninguna canción reproduciéndose, empieza la reproducción
                     if not self.voice_client.is_playing() and not self.current_song:
-                        await self.play_next(ctx)
+                        await self._play_song(ctx)
                 else:
                     await ctx.send("No se encontró la canción.")
         except Exception as e:
             await ctx.send(f"Error al intentar reproducir la canción: {e}")
             print(f"Error al intentar reproducir la canción: {e}")
-            
-    async def _play_song(self, ctx, search):
-    """Reproduce una canción usando streaming"""
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'verbose': True,
-        'quiet': False,
-        'noplaylist': True,  # Evitar listas de reproducción
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
-            'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
-        }],
-    }
+    
+    async def _play_song(self, ctx):
+        """Reproduce una canción desde la cola"""
+        if self.song_queue:
+            song = self.song_queue.pop(0)
+            song_url = song['url']
+            song_title = song['title']
+            source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
+            self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
+            self.current_song = song
+            await ctx.send(f"Reproduciendo: **{song_title}**")  # Mostrar el nombre del video
+        else:
+            self.current_song = None
 
-    try:
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch:{search}", download=False)  # Búsqueda de la canción por nombre
-            if info.get('entries'):
-                # Tomar la primera canción encontrada
-                song_info = info['entries'][0]
-                song_url = song_info['url']
-                song_title = song_info['title']  # Obtener el nombre del video
-                source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
-                await ctx.send(f"Reproduciendo: **{song_title}**")  # Mostrar el nombre del video
-            else:
-                await ctx.send("No se encontró la canción.")
-    except Exception as e:
-        await ctx.send(f"Error al intentar reproducir la canción: {e}")
-        print(f"Error al intentar reproducir la canción: {e}")
-        
+    async def _play_next(self, ctx):
+        """Reproduce la siguiente canción en la cola"""
+        if self.song_queue:
+            await self._play_song(ctx)
+        else:
+            self.current_song = None
+            await ctx.send("No hay más canciones en la cola.")
+    
     @commands.command()
     async def skip(self, ctx):
         """Salta la canción actual"""
@@ -143,7 +133,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def queue(self, ctx):
-    """Muestra la cola actual de canciones"""
+        """Muestra la cola actual de canciones"""
         if self.song_queue:
             queue_list = "\n".join(f"{idx + 1}. {song['title']}" for idx, song in enumerate(self.song_queue))
             await ctx.send(f"🎵 Cola actual:\n{queue_list}")
@@ -153,21 +143,50 @@ class Music(commands.Cog):
     @commands.command()
     async def qAdd(self, ctx, position: int = None, *, search: str):
         """Agrega una canción a una posición específica en la cola"""
-        if position is None or position > len(self.song_queue):
-            # Añadir la canción al final de la cola si no se especifica posición o si la posición es mayor que la cola actual
-            self.song_queue.append(search)
-            await ctx.send(f"🎶 Canción añadida al final de la cola: **{search}**")
-        else:
-            # Insertar la canción en la posición especificada (1-basado)
-            self.song_queue.insert(position - 1, search)
-            await ctx.send(f"🎶 Canción añadida a la posición {position} en la cola: **{search}**")
+        if not ctx.author.voice:  # Verificar si el usuario está en un canal de voz
+            await ctx.send("Necesitas estar en un canal de voz para agregar canciones a la cola.")
+            return
+
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'verbose': True,
+            'quiet': False,
+            'noplaylist': True,  # Evitar listas de reproducción
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
+                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
+            }],
+        }
+
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"ytsearch:{search}", download=False)
+                if info.get('entries'):
+                    # Tomar la primera canción encontrada
+                    song_info = info['entries'][0]
+                    song_url = song_info['url']
+                    song_title = song_info['title']
+                    if position is None or position > len(self.song_queue):
+                        # Añadir la canción al final de la cola si no se especifica posición o si la posición es mayor que la cola actual
+                        self.song_queue.append({'url': song_url, 'title': song_title})
+                        await ctx.send(f"🎶 Canción añadida al final de la cola: **{song_title}**")
+                    else:
+                        # Insertar la canción en la posición especificada (1-basado)
+                        self.song_queue.insert(position - 1, {'url': song_url, 'title': song_title})
+                        await ctx.send(f"🎶 Canción añadida a la posición {position} en la cola: **{song_title}**")
+                else:
+                    await ctx.send("No se encontró la canción.")
+        except Exception as e:
+            await ctx.send(f"Error al intentar agregar la canción a la cola: {e}")
+            print(f"Error al intentar agregar la canción a la cola: {e}")
     
     @commands.command()
     async def qRemove(self, ctx, index: int):
         """Elimina una canción de la cola por su índice"""
         if 1 <= index <= len(self.song_queue):
             removed_song = self.song_queue.pop(index - 1)
-            await ctx.send(f"🎶 Canción eliminada de la cola: **{removed_song}**")
+            await ctx.send(f"🎶 Canción eliminada de la cola: **{removed_song['title']}**")
         else:
             await ctx.send("Índice fuera de rango. Usa `td?queue` para ver la cola actual.")
     
