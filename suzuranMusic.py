@@ -211,7 +211,7 @@ class Music(commands.Cog):
     async def check_inactivity(self):
         """Desconecta el bot si no hay actividad y no hay usuarios en el canal de voz"""
         for vc in self.bot.voice_clients:
-            if not vc.is_playing() and len(vc.channel.members) == 1:  # Solo el bot en el canal
+            if not vc.is_playing() or len(vc.channel.members) == 1:  # Solo el bot en el canal
                 await vc.disconnect()
                 print(f"Desconectado de {vc.channel} por inactividad.")
     
