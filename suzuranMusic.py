@@ -1,4 +1,4 @@
-import discord
+eimport discord
 from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio
@@ -43,17 +43,20 @@ class Music(commands.Cog):
         """Bot joins the voice channel"""
         if ctx.voice_client:
             await ctx.send("Ya estoy en un canal de voz.")
-            await ctx.message.delete()
-            return
 
-        if ctx.author.voice:
-            channel = ctx.author.voice.channel
-            self.voice_client = await channel.connect()
-            await ctx.send("🎶 Entrando en el canal de voz.")
-            await ctx.message.delete()
         else:
-            await ctx.send("No estás conectado a un canal de voz.")
-            await ctx.message.delete()    
+            if ctx.author.voice:
+                channel = ctx.author.voice.channel
+                self.voice_client = await channel.connect()
+                await ctx.send("🎶 Entrando en el canal de voz.")
+            else:
+                await ctx.send("No estás conectado a un canal de voz.")
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            await ctx.send("No tengo permisos para borrar mensajes.")
+        except discord.HTTPException as e:
+            print(f"Error al borrar el mensaje: {e}")
 
     @commands.command()
     async def play(self, ctx, *, search: str):
