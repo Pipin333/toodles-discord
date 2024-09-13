@@ -139,6 +139,17 @@ class Music(commands.Cog):
             await ctx.send(f"🎵 Cola actual:\n{queue_list}")
         else:
             await ctx.send("La cola de canciones está vacía.")
+
+    @commands.command()
+    async def qMove(self, ctx, current_index: int, new_index: int):
+        """Mueve una canción dentro de la cola de una posición a otra"""
+        if 1 <= current_index <= len(self.song_queue) and 1 <= new_index <= len(self.song_queue):
+        # Ajustar índices para que sean 0-basados
+            song = self.song_queue.pop(current_index - 1)
+            self.song_queue.insert(new_index - 1, song)
+            await ctx.send(f"🎶 Canción **{song['title']}** movida de la posición {current_index} a {new_index}.")
+        else:
+            await ctx.send("Índices fuera de rango. Usa `td?queue` para ver la cola actual.")
     
     @commands.command()
     async def qAdd(self, ctx, position: int = None, *, search: str):
@@ -224,20 +235,21 @@ class Music(commands.Cog):
     async def help(self, ctx):
         """Muestra una lista de comandos disponibles"""
         help_message = (
-            "**Comandos de Toodles Music:**\n"
-            "`td?help` - Muestra este mensaje.\n"
-            "`td?join` - Conecta el bot al canal de voz.\n"
-            "`td?play <título>` - Agrega una canción a la cola y empieza a reproducir si no hay ninguna canción en curso.\n"
-            "`td?queue` - Muestra la cola actual de canciones.\n"
-            "`td?qAdd [posición] <título>` - Agrega una canción a una posición específica en la cola.\n"
-            "`td?qRemove <índice>` - Elimina una canción de la cola por su índice.\n"
-            "`td?qClear` - Limpia la cola de canciones.\n"
-            "`td?skip` - Salta la canción actual.\n"
-            "`td?pause` - Pausa la canción actual.\n"
-            "`td?resume` - Reanuda la canción pausada.\n"
-            "`td?stop` - Detiene la canción actual y limpia la cola.\n"
-            "`td?leave` - Desconecta el bot del canal de voz.\n"
-        )
+    "**Comandos de Toodles Music:**\n"
+    "`td?help` - Muestra este mensaje.\n"
+    "`td?join` - Conecta el bot al canal de voz.\n"
+    "`td?play <título>` - Agrega una canción a la cola y empieza a reproducir si no hay ninguna canción en curso.\n"
+    "`td?queue` - Muestra la cola actual de canciones.\n"
+    "`td?qAdd [posición] <título>` - Agrega una canción a una posición específica en la cola.\n"
+    "`td?qMove <índice actual> <nuevo índice>` - Mueve una canción a una nueva posición en la cola.\n"  # Nueva línea
+    "`td?qRemove <índice>` - Elimina una canción de la cola por su índice.\n"
+    "`td?qClear` - Limpia la cola de canciones.\n"
+    "`td?skip` - Salta la canción actual.\n"
+    "`td?pause` - Pausa la canción actual.\n"
+    "`td?resume` - Reanuda la canción pausada.\n"
+    "`td?stop` - Detiene la canción actual y limpia la cola.\n"
+    "`td?leave` - Desconecta el bot del canal de voz.\n"
+)
         await ctx.send(help_message)
 
 # Setup the cog

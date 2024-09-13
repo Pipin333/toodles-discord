@@ -4,4 +4,4 @@ Mejorar interfaz de usuario    // Santiago
 Funcion ver cola               // Miki done
 Eliminar mensaje de autor      // Santiago
 Eliminar canciones de cola     // Miki done
-Mover canciones de orden       // Miki done
+Mover canciones de orden       // Miki 
