@@ -109,6 +109,7 @@ async def desFP(ctx):
 async def main():
     try:
         await bot.load_extension('suzuranMusic')
+        print("Cog 'suzuranMusic' cargado correctamente.")
     except Exception as e:
         print(f"Error al cargar el cog de música: {e}")
 
@@ -118,7 +119,6 @@ async def main():
         await bot.start(token)  # Usa `await bot.start()` en lugar de `bot.run()`
     else:
         print("Token no encontrado.")
-
 # Ejecuta el bot de manera asíncrona
 if __name__ == "__main__":
     asyncio.run(main())
