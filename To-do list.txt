@@ -1,0 +1,7 @@
+Implementacion a spotify
+Implementacion a listas
+Mejorar interfaz de usuario
+Funcion ver cola
+Eliminar mensaje de autor
+Eliminar canciones de cola
+Mover canciones de orden
