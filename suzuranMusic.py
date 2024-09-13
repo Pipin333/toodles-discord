@@ -1,11 +1,14 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
+import asyncio
 
-# Music-related functions
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.inactivity_timeout = 300  # 5 minutos (300 segundos)
+        self.inactive_time = {}  # Diccionario para rastrear el tiempo de inactividad de cada canal
+        self.check_inactivity.start()
 
     @commands.command()
     async def test(self, ctx):
@@ -60,6 +63,9 @@ class Music(commands.Cog):
                     source = discord.FFmpegPCMAudio(url2, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
                     voice_client.play(source)
                     await ctx.send(f"Reproduciendo: **{info['title']}**")
+
+                    # Resetea el contador de inactividad cuando comienza a reproducir música
+                    self.inactive_time[ctx.guild.id] = 0
                 else:
                     await ctx.send("No se pudo obtener el audio de la URL proporcionada.")
         except Exception as e:
@@ -68,6 +74,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def leave(self, ctx):
+        """El bot sale del canal de voz"""
         if ctx.voice_client:
             await ctx.voice_client.disconnect()
             await ctx.send("Saliendo del canal de voz.")
@@ -78,12 +85,24 @@ class Music(commands.Cog):
     async def check_inactivity(self):
         """Revisa periódicamente si el bot está inactivo o si el canal de voz está vacío"""
         for vc in self.bot.voice_clients:
-            if not vc.is_playing() and len(vc.channel.members) == 1:  # Solo el bot en el canal
+            if vc.guild.id not in self.inactive_time:
+                self.inactive_time[vc.guild.id] = 0
+
+            # Incrementa el tiempo de inactividad si no se está reproduciendo música
+            if not vc.is_playing():
+                self.inactive_time[vc.guild.id] += 60
+
+            # Si no hay usuarios en el canal de voz o el bot ha estado inactivo durante más de 5 minutos
+            if len(vc.channel.members) == 1:  # Solo el bot en el canal
                 await vc.disconnect()
+                await vc.guild.system_channel.send("Desconectado por inactividad (canal vacío).")
                 print(f"Desconectado de {vc.channel} por inactividad.")
-            elif not vc.is_playing() and vc.idle_time >= self.inactivity_timeout:
+                self.inactive_time.pop(vc.guild.id)
+            elif self.inactive_time[vc.guild.id] >= self.inactivity_timeout:
                 await vc.disconnect()
+                await vc.guild.system_channel.send("Desconectado por inactividad (sin actividad en 5 minutos).")
                 print(f"Desconectado de {vc.channel} por inactividad.")
+                self.inactive_time.pop(vc.guild.id)
 
     @check_inactivity.before_loop
     async def before_check_inactivity(self):
