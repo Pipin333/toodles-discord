@@ -11,7 +11,7 @@ intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
 intents.voice_states = True
-bot = commands.Bot(command_prefix='td?', intents=intents)
+bot = commands.Bot(command_prefix='td?', intents=intents, help_command=None)
 
 # ID del canal específico
 CHANNEL_ID_CLIPS = 1283061656817238027 # Reemplaza con el ID de tu canal
