@@ -81,7 +81,7 @@ class Music(commands.Cog):
         else:
             await ctx.send("No estoy en ningún canal de voz.")
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=30)
     async def check_inactivity(self):
         """Revisa periódicamente si el bot está inactivo o si el canal de voz está vacío"""
         for vc in self.bot.voice_clients:
