@@ -205,11 +205,6 @@ class Music(commands.Cog):
         """Espera hasta que el bot esté listo antes de empezar a verificar la inactividad"""
         await self.bot.wait_until_ready()
 
-    @commands.command()
-    async def env(self, ctx):
-        env_vars = "\n".join([f"{k}: {v}" for k, v in os.environ.items()])
-        await ctx.send(f"Environment variables:\n{env_vars}")
-
 # Setup the cog
 async def setup(bot):
     await bot.add_cog(Music(bot))
