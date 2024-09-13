@@ -183,7 +183,7 @@ class Music(commands.Cog):
         """Espera hasta que el bot esté listo antes de empezar a verificar la inactividad"""
         await self.bot.wait_until_ready()
 
-     @commands.command()
+    @commands.command()
     async def help(self, ctx):
         """Muestra una lista de comandos disponibles"""
         help_message = (
