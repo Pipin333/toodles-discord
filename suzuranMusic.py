@@ -121,28 +121,17 @@ class Music(commands.Cog):
         else:
             await ctx.send("No estoy en ningún canal de voz.")
 
+    notification_channel_id = 1016494007683137546  # Reemplaza con el ID de tu canal
     @tasks.loop(seconds=30)
     async def check_inactivity(self):
         """Revisa periódicamente si el bot está inactivo o si el canal de voz está vacío"""
         for vc in self.bot.voice_clients:
-            if vc.guild.id not in self.inactive_time:
-                self.inactive_time[vc.guild.id] = 0
-
-            # Incrementa el tiempo de inactividad si no se está reproduciendo música
-            if not vc.is_playing():
-                self.inactive_time[vc.guild.id] += 60
-
-            # Si no hay usuarios en el canal de voz o el bot ha estado inactivo durante más de 5 minutos
-            if len(vc.channel.members) == 1:  # Solo el bot en el canal
+            if not vc.is_playing() and len(vc.channel.members) == 1:
                 await vc.disconnect()
-                await vc.guild.system_channel.send("Desconectado por inactividad (canal vacío).")
-                print(f"Desconectado de {vc.channel} por inactividad.")
-                self.inactive_time.pop(vc.guild.id)
-            elif self.inactive_time[vc.guild.id] >= self.inactivity_timeout:
-                await vc.disconnect()
-                await vc.guild.system_channel.send("Desconectado por inactividad (sin actividad en 5 minutos).")
-                print(f"Desconectado de {vc.channel} por inactividad.")
-                self.inactive_time.pop(vc.guild.id)
+                notification_channel = self.bot.get_channel(notification_channel_id)
+                if notification_channel:
+                    await notification_channel.send("Desconectado por inactividad (canal vacío).")
+                print(f"Desconectado de {vc.channel}.")
 
     @check_inactivity.before_loop
     async def before_check_inactivity(self):
