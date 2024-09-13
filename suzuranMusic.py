@@ -38,25 +38,7 @@ class Music(commands.Cog):
             self.voice_client = await channel.connect()
             await ctx.send("🎶 Conectando al canal de voz...")
     
-        # Añadir la canción a la cola
-        self.song_queue.append(search)
-        await ctx.send(f"🎶 Canción añadida a la cola: **{search}**")
-    
-        # Si no hay ninguna canción reproduciéndose, empieza la reproducción
-        if not self.voice_client.is_playing() and not self.current_song:
-            await self.play_next(ctx)
-    
-    async def play_next(self, ctx):
-        """Reproduce la siguiente canción en la cola"""
-        if self.song_queue:
-            search = self.song_queue.pop(0)  # Obtener la primera canción de la cola
-            self.current_song = search  # Establecer la canción actual
-            await self._play_song(ctx, search)  # Reproducir la canción
-        else:
-            self.current_song = None  # No hay canciones en la cola
-    
-    async def _play_song(self, ctx, search):
-        """Reproduce una canción usando streaming"""
+        # Buscar información de la canción
         ydl_opts = {
             'format': 'bestaudio/best',
             'verbose': True,
@@ -68,23 +50,59 @@ class Music(commands.Cog):
                 'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
             }],
         }
-
+    
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"ytsearch:{search}", download=False)  # Búsqueda de la canción por nombre
+                info = ydl.extract_info(f"ytsearch:{search}", download=False)
                 if info.get('entries'):
                     # Tomar la primera canción encontrada
                     song_info = info['entries'][0]
                     song_url = song_info['url']
-                    source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-                    self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
-                    await ctx.send(f"Reproduciendo: **{song_info['title']}**")
+                    song_title = song_info['title']
+                    # Añadir la canción a la cola
+                    self.song_queue.append({'url': song_url, 'title': song_title})
+                    await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
+                
+                    # Si no hay ninguna canción reproduciéndose, empieza la reproducción
+                    if not self.voice_client.is_playing() and not self.current_song:
+                        await self.play_next(ctx)
                 else:
                     await ctx.send("No se encontró la canción.")
         except Exception as e:
             await ctx.send(f"Error al intentar reproducir la canción: {e}")
             print(f"Error al intentar reproducir la canción: {e}")
+            
+    async def _play_song(self, ctx, search):
+    """Reproduce una canción usando streaming"""
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'verbose': True,
+        'quiet': False,
+        'noplaylist': True,  # Evitar listas de reproducción
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
+            'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
+        }],
+    }
 
+    try:
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"ytsearch:{search}", download=False)  # Búsqueda de la canción por nombre
+            if info.get('entries'):
+                # Tomar la primera canción encontrada
+                song_info = info['entries'][0]
+                song_url = song_info['url']
+                song_title = song_info['title']  # Obtener el nombre del video
+                source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
+                await ctx.send(f"Reproduciendo: **{song_title}**")  # Mostrar el nombre del video
+            else:
+                await ctx.send("No se encontró la canción.")
+    except Exception as e:
+        await ctx.send(f"Error al intentar reproducir la canción: {e}")
+        print(f"Error al intentar reproducir la canción: {e}")
+        
     @commands.command()
     async def skip(self, ctx):
         """Salta la canción actual"""
@@ -125,9 +143,9 @@ class Music(commands.Cog):
 
     @commands.command()
     async def queue(self, ctx):
-        """Muestra la cola actual de canciones"""
+    """Muestra la cola actual de canciones"""
         if self.song_queue:
-            queue_list = "\n".join(f"{idx + 1}. {song}" for idx, song in enumerate(self.song_queue))
+            queue_list = "\n".join(f"{idx + 1}. {song['title']}" for idx, song in enumerate(self.song_queue))
             await ctx.send(f"🎵 Cola actual:\n{queue_list}")
         else:
             await ctx.send("La cola de canciones está vacía.")
