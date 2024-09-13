@@ -6,9 +6,15 @@ import asyncio
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.inactivity_timeout = 300  # 5 minutos (300 segundos)
-        self.inactive_time = {}  # Diccionario para rastrear el tiempo de inactividad de cada canal
+        self.song_queue = {}  # Cola de canciones para cada servidor
+        self.inactivity_timeout = 180  # 5 minutos (300 segundos)
+        self.inactive_time = {}  # Para rastrear el tiempo de inactividad de cada canal
         self.check_inactivity.start()
+
+    async def ensure_queue(self, ctx):
+        """Asegúrate de que haya una cola de canciones para este servidor."""
+        if ctx.guild.id not in self.song_queue:
+            self.song_queue[ctx.guild.id] = []
 
     @commands.command()
     async def test(self, ctx):
@@ -31,7 +37,8 @@ class Music(commands.Cog):
 
     @commands.command()
     async def play(self, ctx, url):
-        """Play music in the voice channel"""
+        """Play music in the voice channel or add to queue if already playing"""
+        await self.ensure_queue(ctx)  # Asegura que exista una cola para el servidor
         voice_client = ctx.voice_client
 
         # Si el bot no está conectado a un canal de voz, conéctate
@@ -44,11 +51,6 @@ class Music(commands.Cog):
                 await ctx.send("No estás conectado a un canal de voz.")
                 return
 
-        # Verifica si el bot ya está reproduciendo música
-        if voice_client.is_playing():
-            await ctx.send("Ya estoy tocando música.")
-            return
-
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': False,
@@ -59,22 +61,60 @@ class Music(commands.Cog):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 if 'formats' in info:
-                    url2 = info['formats'][0]['url']
-                    source = discord.FFmpegPCMAudio(url2, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-                    voice_client.play(source)
-                    await ctx.send(f"Reproduciendo: **{info['title']}**")
+                    song_url = info['formats'][0]['url']
+                    title = info['title']
+                    
+                    # Agregar canción a la cola
+                    self.song_queue[ctx.guild.id].append((song_url, title))
+                    await ctx.send(f"🎶 **{title}** añadida a la cola.")
 
-                    # Resetea el contador de inactividad cuando comienza a reproducir música
-                    self.inactive_time[ctx.guild.id] = 0
+                    # Si no hay ninguna canción reproduciéndose, inicia la reproducción
+                    if not voice_client.is_playing():
+                        await self.play_next(ctx)
                 else:
                     await ctx.send("No se pudo obtener el audio de la URL proporcionada.")
         except Exception as e:
             await ctx.send(f"Hubo un error al intentar reproducir el audio: {e}")
             print(f"Error al intentar reproducir el audio: {e}")
 
+    async def play_next(self, ctx):
+        """Reproduce la siguiente canción en la cola si hay alguna."""
+        await self.ensure_queue(ctx)
+
+        if self.song_queue[ctx.guild.id]:
+            voice_client = ctx.voice_client
+            song_url, title = self.song_queue[ctx.guild.id].pop(0)
+
+            source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
+            voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
+            await ctx.send(f"🎶 Reproduciendo: **{title}**")
+        else:
+            await ctx.send("No hay más canciones en la cola.")
+
+    @commands.command()
+    async def queue(self, ctx):
+        """Muestra las canciones en la cola."""
+        await self.ensure_queue(ctx)
+
+        if self.song_queue[ctx.guild.id]:
+            queue_list = '\n'.join([f"**{i+1}. {title}**" for i, (url, title) in enumerate(self.song_queue[ctx.guild.id])])
+            await ctx.send(f"🎶 Canciones en la cola:\n{queue_list}")
+        else:
+            await ctx.send("No hay canciones en la cola.")
+
+    @commands.command()
+    async def skip(self, ctx):
+        """Salta la canción actual y reproduce la siguiente en la cola."""
+        if ctx.voice_client and ctx.voice_client.is_playing():
+            ctx.voice_client.stop()
+            await ctx.send("⏭ Canción saltada.")
+            await self.play_next(ctx)
+        else:
+            await ctx.send("No hay ninguna canción reproduciéndose.")
+
     @commands.command()
     async def leave(self, ctx):
-        """El bot sale del canal de voz"""
+        """El bot sale del canal de voz."""
         if ctx.voice_client:
             await ctx.voice_client.disconnect()
             await ctx.send("Saliendo del canal de voz.")
