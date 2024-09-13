@@ -45,7 +45,7 @@ class Music(commands.Cog):
         # Si no hay ninguna canción reproduciéndose, empieza la reproducción
         if not self.voice_client.is_playing() and not self.current_song:
             await self.play_next(ctx)
-            
+    
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola"""
         if self.song_queue:
@@ -59,8 +59,14 @@ class Music(commands.Cog):
         """Reproduce una canción usando streaming"""
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'verbose': True,
+            'quiet': False,
             'noplaylist': True,  # Evitar listas de reproducción
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
+                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
+            }],
         }
 
         try:
@@ -85,6 +91,35 @@ class Music(commands.Cog):
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.stop()  # Detener la canción actual
             await ctx.send("⏭ Saltando canción.")
+        else:
+            await ctx.send("No hay ninguna canción reproduciéndose.")
+
+    @commands.command()
+    async def pause(self, ctx):
+        """Pausa la canción actual"""
+        if self.voice_client and self.voice_client.is_playing():
+            self.voice_client.pause()  # Pausar la canción
+            await ctx.send("⏸ Canción pausada.")
+        else:
+            await ctx.send("No hay ninguna canción reproduciéndose o ya está pausada.")
+    
+    @commands.command()
+    async def resume(self, ctx):
+        """Reanuda la canción pausada"""
+        if self.voice_client and self.voice_client.is_paused():
+            self.voice_client.resume()  # Reanudar la canción
+            await ctx.send("▶ Reanudando la canción.")
+        else:
+            await ctx.send("No hay ninguna canción pausada o no estoy en un canal de voz.")
+    
+    @commands.command()
+    async def stop(self, ctx):
+        """Detiene la canción actual y limpia la cola"""
+        if self.voice_client and self.voice_client.is_playing():
+            self.voice_client.stop()  # Detener la canción actual
+            self.song_queue.clear()  # Limpiar la cola de canciones
+            self.current_song = None  # Resetear la canción actual
+            await ctx.send("🛑 Canción detenida y cola limpiada.")
         else:
             await ctx.send("No hay ninguna canción reproduciéndose.")
     
