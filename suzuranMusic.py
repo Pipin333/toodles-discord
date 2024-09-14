@@ -120,14 +120,8 @@ class Music(commands.Cog):
         # Configuración de youtube_dl para búsqueda
         ydl_opts = {
             'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
+            'quiet': True,
             'noplaylist': True,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '320',
-            }],
         }
 
         try:
@@ -140,8 +134,8 @@ class Music(commands.Cog):
                     await ctx.send("No se encontraron canciones.")
                     return
 
-                # Crear un mensaje con las coincidencias numeradas
-                search_results = "\n".join([f"{idx + 1}. {song['title']}" for idx, song in enumerate(entries)])
+                # Crear un mensaje con las coincidencias numeradas, mostrando título y duración si está disponible
+                search_results = "\n".join([f"{idx + 1}. {song['title']} ({self.format_duration(song.get('duration'))})" for idx, song in enumerate(entries)])
                 await ctx.send(f"**Canciones encontradas:**\n{search_results}\n\nResponde con el número de la canción que quieres reproducir.")
 
                 # Función para validar que la respuesta del usuario sea un número válido
@@ -176,7 +170,14 @@ class Music(commands.Cog):
                     await ctx.send("Tiempo de respuesta agotado. Intenta de nuevo.")
         except Exception as e:
             await ctx.send(f"Error durante la búsqueda: {e}")
-            
+
+    def format_duration(self, duration):
+        """Convierte la duración de la canción de segundos a minutos:segundos"""
+        if duration is None:
+            return "N/A"
+        minutes, seconds = divmod(duration, 60)
+        return f"{minutes}:{seconds:02d}"
+
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola"""
         if self.song_queue:
