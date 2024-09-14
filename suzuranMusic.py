@@ -120,6 +120,7 @@ class Music(commands.Cog):
     @commands.command()
     async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
+
         ydl_opts = {
             'format': 'bestaudio/best',
             'verbose': True,
@@ -162,8 +163,16 @@ class Music(commands.Cog):
                             self.song_queue.append(song)
                             await ctx.send(f"🎶 Canción seleccionada: {selected_song['title']} añadida a la cola.")
                             
-                            if not self.voice_client.is_playing() and not self.current_song:
-                                await self._play_song(ctx)
+                            # Verificar si el bot está en un canal de voz antes de intentar reproducir
+                            if not self.voice_client or not self.voice_client.is_connected():
+                                if ctx.author.voice:
+                                    channel = ctx.author.voice.channel
+                                    self.voice_client = await channel.connect()
+                                else:
+                                    await ctx.send("No estoy en un canal de voz. Conéctame a un canal y vuelve a intentar.")
+                            else:
+                                if not self.voice_client.is_playing() and not self.current_song:
+                                    await self._play_song(ctx)
                         else:
                             await ctx.send("Número de canción inválido.")
                     except asyncio.TimeoutError:
@@ -183,19 +192,18 @@ class Music(commands.Cog):
             song_duration = song.get('duration', 0)  # Obtener la duración si está disponible
             total_duration = self.format_duration(song_duration)
             
-            if self.voice_client:
+            if self.voice_client and self.voice_client.is_connected():
                 source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
                 self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
                 self.current_song = song
                 
                 # Anunciar la reproducción de la canción con la duración total
-                await ctx.send(f"🎶 Reproduciendo **{song_title}** ({total_duration})")
-                self.start_time = time.time()  # Guardar el tiempo de inicio
+                await ctx.send(f"Reproduciendo: **{song_title}** (Duración: {total_duration})")
             else:
-                await ctx.send("No se pudo conectar al canal de voz.")
+                await ctx.send("No estoy conectado a un canal de voz.")
         else:
-            await ctx.send("La cola de canciones está vacía.")
             self.current_song = None
+
 
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola"""
