@@ -116,7 +116,7 @@ class Music(commands.Cog):
     @commands.command()
     async def search(self, ctx, *, search: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
-        
+
         # Configuración de youtube_dl para búsqueda
         ydl_opts = {
             'format': 'bestaudio/best',
@@ -127,44 +127,40 @@ class Music(commands.Cog):
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '320',
-            }],
         }
-        
+
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"ytsearch:{search}", download=False)
+                # Realizamos la búsqueda en YouTube con "ytsearch"
+                info = ydl.extract_info(f"ytsearch10:{search}", download=False)  # Limitar a las primeras 5 coincidencias
                 entries = info.get('entries', [])
-                
+
                 if not entries:
                     await ctx.send("No se encontraron canciones.")
                     return
-                
-                # Limitar a las primeras 'n' coincidencias
-                n = 5  # Número de canciones a mostrar
-                songs = entries[:n]
-                
+
                 # Crear un mensaje con las coincidencias numeradas
-                search_results = "\n".join([f"{idx + 1}. {song['title']}" for idx, song in enumerate(songs)])
+                search_results = "\n".join([f"{idx + 1}. {song['title']}" for idx, song in enumerate(entries)])
                 await ctx.send(f"**Canciones encontradas:**\n{search_results}\n\nResponde con el número de la canción que quieres reproducir.")
 
                 # Función para validar que la respuesta del usuario sea un número válido
                 def check(msg):
-                    return msg.author == ctx.author and msg.content.isdigit() and 1 <= int(msg.content) <= len(songs)
-                
+                    return msg.author == ctx.author and msg.content.isdigit() and 1 <= int(msg.content) <= len(entries)
+
                 # Esperar la respuesta del usuario
                 try:
                     response = await self.bot.wait_for('message', timeout=30.0, check=check)
                     choice = int(response.content) - 1  # Convertir a índice
 
                     # Obtener la canción seleccionada
-                    selected_song = songs[choice]
+                    selected_song = entries[choice]
                     song_url = selected_song['url']
                     song_title = selected_song['title']
-                    
+
                     # Añadir la canción seleccionada a la cola
                     self.song_queue.append({'url': song_url, 'title': song_title})
                     await ctx.send(f"🎶 Canción seleccionada: **{song_title}** añadida a la cola.")
-                    
+
                     # Si no hay ninguna canción reproduciéndose, empieza la reproducción
                     if not self.voice_client.is_playing() and not self.current_song:
                         await self.play_next(ctx)
@@ -172,7 +168,7 @@ class Music(commands.Cog):
                     await ctx.send("Tiempo de respuesta agotado. Intenta de nuevo.")
         except Exception as e:
             await ctx.send(f"Error durante la búsqueda: {e}")
-        
+            
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola"""
         if self.song_queue:
