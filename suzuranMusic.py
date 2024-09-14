@@ -127,8 +127,8 @@ class Music(commands.Cog):
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '320',
+            }],
         }
-
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 # Realizamos la búsqueda en YouTube con "ytsearch"
