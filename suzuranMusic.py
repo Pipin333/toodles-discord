@@ -117,7 +117,6 @@ class Music(commands.Cog):
     async def search(self, ctx, *, search: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
 
-        # Configuración de youtube_dl para búsqueda
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,
@@ -134,8 +133,17 @@ class Music(commands.Cog):
                     await ctx.send("No se encontraron canciones.")
                     return
 
-                # Crear un mensaje con las coincidencias numeradas, mostrando título y duración si está disponible
-                search_results = "\n".join([f"{idx + 1}. {song['title']} ({self.format_duration(song.get('duration'))})" for idx, song in enumerate(entries)])
+                # Crear un mensaje con las coincidencias numeradas, manejando la duración si existe
+                search_results = ""
+                for idx, song in enumerate(entries):
+                    song_title = song['title']
+                    duration = song.get('duration', None)
+                    if duration:  # Si la duración está presente, la convertimos
+                        duration_formatted = self.format_duration(duration)
+                    else:  # Si no, mostramos "N/A"
+                        duration_formatted = "N/A"
+                    search_results += f"{idx + 1}. {song_title} ({duration_formatted})\n"
+
                 await ctx.send(f"**Canciones encontradas:**\n{search_results}\n\nResponde con el número de la canción que quieres reproducir.")
 
                 # Función para validar que la respuesta del usuario sea un número válido
@@ -177,19 +185,18 @@ class Music(commands.Cog):
             return "N/A"
         minutes, seconds = divmod(duration, 60)
         return f"{minutes}:{seconds:02d}"
-
-    async def _play_song(self, ctx):
-        """Reproduce una canción desde la cola"""
-        if self.song_queue:
-            song = self.song_queue.pop(0)
-            song_url = song['url']
-            song_title = song['title']
-            source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-            self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
-            self.current_song = song
-            await ctx.send(f"Reproduciendo: **{song_title}**")  # Mostrar el nombre del video
-        else:
-            self.current_song = None
+        async def _play_song(self, ctx):
+            """Reproduce una canción desde la cola"""
+            if self.song_queue:
+                song = self.song_queue.pop(0)
+                song_url = song['url']
+                song_title = song['title']
+                source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
+                self.current_song = song
+                await ctx.send(f"Reproduciendo: **{song_title}**")  # Mostrar el nombre del video
+            else:
+                self.current_song = None
 
     async def play_next(self, ctx):
         if self.song_queue:
