@@ -6,6 +6,7 @@ import time
 
 def delete_user_message():
     def decorator(func):
+        @functools.wraps(func)
         async def wrapper(ctx, *args, **kwargs):
             try:
                 await ctx.message.delete()  # Attempt to delete the user's message
