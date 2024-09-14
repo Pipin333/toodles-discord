@@ -1,4 +1,4 @@
-eimport discord
+import discord
 from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio
@@ -17,7 +17,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def delete_test(self, ctx):
-    """Test if the bot can delete a message"""
+        """Test if the bot can delete a message"""
         try:
             await ctx.message.delete()
             await ctx.send("Mensaje eliminado.")
