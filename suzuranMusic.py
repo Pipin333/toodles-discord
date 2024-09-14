@@ -62,6 +62,7 @@ class Music(commands.Cog):
                 channel = ctx.author.voice.channel
                 self.voice_client = await channel.connect()
                 await ctx.send("🎶 Entrando en el canal de voz.")
+                await ctx.message.delete()
             else:
                 await ctx.send("No estás conectado a un canal de voz.")
 
