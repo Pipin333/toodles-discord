@@ -129,10 +129,11 @@ class Music(commands.Cog):
                 'preferredquality': '320',
             }],
         }
+
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 # Realizamos la búsqueda en YouTube con "ytsearch"
-                info = ydl.extract_info(f"ytsearch10:{search}", download=False)  # Limitar a las primeras 5 coincidencias
+                info = ydl.extract_info(f"ytsearch5:{search}", download=False)  # Limitar a las primeras 5 coincidencias
                 entries = info.get('entries', [])
 
                 if not entries:
@@ -161,8 +162,15 @@ class Music(commands.Cog):
                     self.song_queue.append({'url': song_url, 'title': song_title})
                     await ctx.send(f"🎶 Canción seleccionada: **{song_title}** añadida a la cola.")
 
+                    # Verificar si el bot está en un canal de voz y conectarlo si es necesario
+                    if not ctx.voice_client:  # Si no está en un canal de voz
+                        if ctx.author.voice:
+                            channel = ctx.author.voice.channel
+                            self.voice_client = await channel.connect()
+                            await ctx.send("🎶 Conectando al canal de voz...")
+
                     # Si no hay ninguna canción reproduciéndose, empieza la reproducción
-                    if not self.voice_client.is_playing() and not self.current_song:
+                    if self.voice_client and not self.voice_client.is_playing() and not self.current_song:
                         await self.play_next(ctx)
                 except asyncio.TimeoutError:
                     await ctx.send("Tiempo de respuesta agotado. Intenta de nuevo.")
