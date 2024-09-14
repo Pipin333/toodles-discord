@@ -191,12 +191,13 @@ class Music(commands.Cog):
             song_title = song['title']
             song_duration = song.get('duration', 0)  # Obtener la duración si está disponible
             total_duration = self.format_duration(song_duration)
-            
+
             if self.voice_client and self.voice_client.is_connected():
                 source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
                 self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
                 self.current_song = song
-                
+                self.start_time = time.time()  # Inicializar el tiempo de inicio
+
                 # Anunciar la reproducción de la canción con la duración total
                 await ctx.send(f"Reproduciendo: **{song_title}** (Duración: {total_duration})")
             else:
@@ -215,15 +216,20 @@ class Music(commands.Cog):
 
     @commands.command()
     async def np(self, ctx):
-        """Muestra la canción actual y el tiempo de reproducción"""
+        """Muestra la canción que se está reproduciendo actualmente"""
         if self.current_song:
+            if self.start_time is None:
+                await ctx.send("No se pudo determinar el tiempo transcurrido.")
+                return
+
             elapsed_time = int(time.time() - self.start_time)
-            remaining_time = max(self.current_song['duration'] - elapsed_time, 0)
-            elapsed_formatted = self.format_duration(elapsed_time)
-            remaining_formatted = self.format_duration(remaining_time)
-            await ctx.send(f"🎶 Ahora mismo: **{self.current_song['title']}** - Tiempo transcurrido: {elapsed_formatted} / {remaining_formatted}")
+            total_duration = self.current_song.get('duration', 0)
+            formatted_elapsed_time = self.format_duration(elapsed_time)
+            formatted_total_duration = self.format_duration(total_duration)
+            
+            await ctx.send(f"🎶 Reproduciendo ahora: **{self.current_song['title']}** \nTiempo transcurrido: {formatted_elapsed_time} / {formatted_total_duration}")
         else:
-            await ctx.send("No se está reproduciendo ninguna canción.")
+            await ctx.send("No hay ninguna canción reproduciéndose en este momento.")
 
     @commands.command()
     async def queue(self, ctx):
