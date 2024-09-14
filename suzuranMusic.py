@@ -96,7 +96,7 @@ class Music(commands.Cog):
                     song_info = info['entries'][0]
                     song_url = song_info['url']
                     song_title = song_info['title']
-                    song_duration = song_info['duration']  # Obtener duración
+                    song_duration = song_info.get('duration', 0)  # Obtener duración
 
                     # Añadir la canción a la cola
                     self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
@@ -105,13 +105,15 @@ class Music(commands.Cog):
 
                     # Si no hay ninguna canción reproduciéndose, empieza la reproducción
                     if not self.voice_client.is_playing() and not self.current_song:
-                        await self.play_next(ctx)
+                        if self.voice_client:  # Verifica que voice_client no sea None
+                            await self._play_song(ctx)
+                        else:
+                            await ctx.send("No se pudo conectar al canal de voz.")
                 else:
                     await ctx.send("No se encontró la canción.")
         except Exception as e:
             await ctx.send(f"Error al intentar reproducir la canción: {e}")
             print(f"Error al intentar reproducir la canción: {e}")
-
 
     @commands.command()
     async def search(self, ctx, *, query: str):
@@ -177,24 +179,26 @@ class Music(commands.Cog):
         return f"{minutes}:{seconds:02d}"
 
     async def _play_song(self, ctx):
-        """Reproduce una canción desde la cola"""
-        if self.song_queue:
-            song = self.song_queue.pop(0)
-            song_url = song['url']
-            song_title = song['title']
-            song_duration = song.get('duration', 0)  # Obtener la duración si está disponible
-            total_duration = self.format_duration(song_duration)
-            
+    """Reproduce una canción desde la cola"""
+    if self.song_queue:
+        song = self.song_queue.pop(0)
+        song_url = song['url']
+        song_title = song['title']
+        song_duration = song.get('duration', 0)  # Obtener la duración si está disponible
+        total_duration = self.format_duration(song_duration)
+        
+        if self.voice_client:
             source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-            
             self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
             self.current_song = song
             
             # Anunciar la reproducción de la canción con la duración total
             await ctx.send(f"Reproduciendo: **{song_title}** (Duración: {total_duration})")
         else:
-            self.current_song = None
-            
+            await ctx.send("No estoy conectado a un canal de voz.")
+    else:
+        self.current_song = None
+
     def format_duration(self, seconds):
         """Formatea la duración en segundos a formato minutos:segundos"""
         minutes, seconds = divmod(seconds, 60)
