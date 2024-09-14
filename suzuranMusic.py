@@ -4,6 +4,26 @@ import yt_dlp as youtube_dl
 import asyncio
 import time
 
+def delete_user_message():
+    """Funcion que maneja lae liminacion de mensajes, creando un decorator que se usara como complemento de las funciones necesarias"""
+    async def wrapper(ctx, func):
+        try:
+            # Delete the user's message
+            await ctx.message.delete()
+        except discord.Forbidden:
+            await ctx.send("No tengo permisos para borrar mensajes.")
+        except discord.HTTPException as e:
+            await ctx.send(f"Error al borrar el mensaje: {e}")
+        
+        # Execute the original function (the command)
+        await func(ctx)
+    def decorator(func):
+        async def inner(ctx, *args, **kwargs):
+            await wrapper(ctx, func)
+        return inner
+    return decorator
+
+
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -52,6 +72,7 @@ class Music(commands.Cog):
         )
         await ctx.send(help_message)
 
+    @delete_user_message()
     @commands.command()
     async def join(self, ctx):
         """Bot joins the voice channel"""
@@ -66,14 +87,14 @@ class Music(commands.Cog):
             else:
                 await ctx.send("No estás conectado a un canal de voz.")
                 
-        await asyncio.sleep(0.5)
-        try:
-            await ctx.send("En await ctx.message.delete()")
-            await ctx.message.delete()
-        except discord.Forbidden:
-            await ctx.send("No tengo permisos para borrar mensajes.")
-        except discord.HTTPException as e:
-            await ctx.send(f"Error al borrar el mensaje: {e}")
+        #await asyncio.sleep(0.5)
+        #try:
+            #await ctx.send("En await ctx.message.delete()")
+            #await ctx.message.delete()
+        #except discord.Forbidden:
+            #await ctx.send("No tengo permisos para borrar mensajes.")
+        #except discord.HTTPException as e:
+            #await ctx.send(f"Error al borrar el mensaje: {e}")
 
     @commands.command()
     async def play(self, ctx, *, search: str):
