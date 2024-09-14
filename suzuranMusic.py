@@ -55,13 +55,6 @@ class Music(commands.Cog):
     @commands.command()
     async def join(self, ctx):
         """Bot joins the voice channel"""
-        try:
-            await ctx.message.delete()
-        except discord.Forbidden:
-            await ctx.send("No tengo permisos para borrar mensajes.")
-        except discord.HTTPException as e:
-            await ctx.send(f"Error al borrar el mensaje: {e}")
-            return  # Si falla al eliminar el mensaje sale de la funcion
         
         if ctx.voice_client:
             await ctx.send("Ya estoy en un canal de voz.")
@@ -72,6 +65,13 @@ class Music(commands.Cog):
                 await ctx.send("🎶 Entrando en el canal de voz.")
             else:
                 await ctx.send("No estás conectado a un canal de voz.")
+        await asyncio.sleep(0.5)
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            await ctx.send("No tengo permisos para borrar mensajes.")
+        except discord.HTTPException as e:
+            await ctx.send(f"Error al borrar el mensaje: {e}")
 
     @commands.command()
     async def play(self, ctx, *, search: str):
