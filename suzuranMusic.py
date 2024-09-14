@@ -5,24 +5,18 @@ import asyncio
 import time
 
 def delete_user_message():
-    """Funcion que maneja lae liminacion de mensajes, creando un decorator que se usara como complemento de las funciones necesarias"""
-    async def wrapper(ctx, func):
-        try:
-            # Delete the user's message
-            await ctx.message.delete()
-        except discord.Forbidden:
-            await ctx.send("No tengo permisos para borrar mensajes.")
-        except discord.HTTPException as e:
-            await ctx.send(f"Error al borrar el mensaje: {e}")
-        
-        # Execute the original function (the command)
-        await func(ctx)
     def decorator(func):
-        async def inner(ctx, *args, **kwargs):
-            await wrapper(ctx, func)
-        return inner
+        async def wrapper(ctx, *args, **kwargs):
+            try:
+                await ctx.message.delete()  # Attempt to delete the user's message
+            except discord.Forbidden:
+                await ctx.send("No tengo permisos para borrar mensajes.")
+            except discord.HTTPException as e:
+                await ctx.send(f"Error al borrar el mensaje: {e}")
+            # Continue executing the original function
+            return await func(ctx, *args, **kwargs)
+        return wrapper
     return decorator
-
 
 class Music(commands.Cog):
     def __init__(self, bot):
