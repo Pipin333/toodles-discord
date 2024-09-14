@@ -111,7 +111,68 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error al intentar reproducir la canción: {e}")
             print(f"Error al intentar reproducir la canción: {e}")
-    
+
+
+    @commands.command()
+    async def search(self, ctx, *, search: str):
+        """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
+        
+        # Configuración de youtube_dl para búsqueda
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'verbose': True,
+            'quiet': False,
+            'noplaylist': True,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '320',
+            }],
+        }
+        
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"ytsearch:{search}", download=False)
+                entries = info.get('entries', [])
+                
+                if not entries:
+                    await ctx.send("No se encontraron canciones.")
+                    return
+                
+                # Limitar a las primeras 'n' coincidencias
+                n = 5  # Número de canciones a mostrar
+                songs = entries[:n]
+                
+                # Crear un mensaje con las coincidencias numeradas
+                search_results = "\n".join([f"{idx + 1}. {song['title']}" for idx, song in enumerate(songs)])
+                await ctx.send(f"**Canciones encontradas:**\n{search_results}\n\nResponde con el número de la canción que quieres reproducir.")
+
+                # Función para validar que la respuesta del usuario sea un número válido
+                def check(msg):
+                    return msg.author == ctx.author and msg.content.isdigit() and 1 <= int(msg.content) <= len(songs)
+                
+                # Esperar la respuesta del usuario
+                try:
+                    response = await self.bot.wait_for('message', timeout=30.0, check=check)
+                    choice = int(response.content) - 1  # Convertir a índice
+
+                    # Obtener la canción seleccionada
+                    selected_song = songs[choice]
+                    song_url = selected_song['url']
+                    song_title = selected_song['title']
+                    
+                    # Añadir la canción seleccionada a la cola
+                    self.song_queue.append({'url': song_url, 'title': song_title})
+                    await ctx.send(f"🎶 Canción seleccionada: **{song_title}** añadida a la cola.")
+                    
+                    # Si no hay ninguna canción reproduciéndose, empieza la reproducción
+                    if not self.voice_client.is_playing() and not self.current_song:
+                        await self.play_next(ctx)
+                except asyncio.TimeoutError:
+                    await ctx.send("Tiempo de respuesta agotado. Intenta de nuevo.")
+        except Exception as e:
+            await ctx.send(f"Error durante la búsqueda: {e}")
+        
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola"""
         if self.song_queue:
@@ -144,14 +205,20 @@ class Music(commands.Cog):
             await ctx.send("La cola de canciones está vacía.")
 
 
-        @commands.command()
-        async def skip(self, ctx):
-            """Salta la canción actual"""
-            if self.voice_client and self.voice_client.is_playing():
-                self.voice_client.stop()  # Detener la canción actual
-                await ctx.send("⏭ Saltando canción.")
+    @commands.command()
+    async def skip(self, ctx):
+        """Salta la canción actual y reproduce la siguiente en la cola"""
+        if self.voice_client and self.voice_client.is_playing():
+            self.voice_client.stop()  # Detiene la canción actual
+            await ctx.send("⏭ Saltando la canción actual...")
+
+            # Asegúrate de que haya una canción en la cola para reproducir la siguiente
+            if self.song_queue:
+                await self.play_next(ctx)
             else:
-                await ctx.send("No hay ninguna canción reproduciéndose.")
+                await ctx.send("No hay más canciones en la cola.")
+        else:
+            await ctx.send("No hay ninguna canción reproduciéndose.")
 
 
     @commands.command()
@@ -286,12 +353,13 @@ class Music(commands.Cog):
             await ctx.send("Saliendo del canal de voz y limpiando la cola.")
         else:
             await ctx.send("No estoy en ningún canal de voz.")
-    
+
     @tasks.loop(seconds=30)
     async def check_inactivity(self):
-        """Desconecta el bot si no hay actividad y no hay usuarios en el canal de voz"""
+        """Desconecta el bot si no hay música sonando o si está solo en el canal de voz"""
         for vc in self.bot.voice_clients:
-            if not vc.is_playing() or len(vc.channel.members) == 1:  # Solo el bot en el canal
+            # Verifica si no está reproduciendo ni pausado o si está solo en el canal
+            if (not vc.is_playing() and not vc.is_paused()) or len(vc.channel.members) == 1:
                 await vc.disconnect()
                 print(f"Desconectado de {vc.channel} por inactividad.")
     
