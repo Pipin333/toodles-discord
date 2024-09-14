@@ -131,65 +131,45 @@ class Music(commands.Cog):
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                # Realizamos la búsqueda en YouTube con "ytsearch"
-                info = ydl.extract_info(f"ytsearch5:{search}", download=False)  # Limitar a las primeras 5 coincidencias
-                entries = info.get('entries', [])
-
-                if not entries:
-                    await ctx.send("No se encontraron canciones.")
-                    return
-
-                # Crear un mensaje con las coincidencias numeradas
-                search_results = ""
-                for idx, song in enumerate(entries):
-                    song_title = song.get('title', 'Sin título')  # Si falta, mostrar "Sin título"
-                    duration = song.get('duration')  # Duración en segundos si está disponible
-
-                    if duration is not None:  # Si la duración existe, formatearla
-                        duration_formatted = self.format_duration(duration)
-                    else:  # Si no hay duración, mostrar "N/A"
-                        duration_formatted = "N/A"
+                info = ydl.extract_info(f"ytsearch:{query}", download=False)
+                if 'entries' in info:
+                    search_results = info['entries'][:5]
+                    results_message = "Canciones encontradas:\n"
+                    for idx, entry in enumerate(search_results):
+                        title = entry.get('title', 'Sin título')
+                        duration = entry.get('duration', 0)
+                        formatted_duration = self.format_duration(duration)
+                        results_message += f"{idx + 1}. {title} (Duración: {formatted_duration})\n"
                     
-                    search_results += f"{idx + 1}. {song_title} ({duration_formatted})\n"
-
-                await ctx.send(f"**Canciones encontradas:**\n{search_results}\n\nResponde con el número de la canción que quieres reproducir.")
-
-                # Validar que la respuesta del usuario sea un número válido
-                def check(msg):
-                    return msg.author == ctx.author and msg.content.isdigit() and 1 <= int(msg.content) <= len(entries)
-
-                # Esperar la respuesta del usuario
-                try:
-                    response = await self.bot.wait_for('message', timeout=30.0, check=check)
-                    choice = int(response.content) - 1  # Convertir la elección a índice
-
-                    # Obtener la canción seleccionada
-                    selected_song = entries[choice]
-                    song_url = selected_song.get('url', None)
-                    song_title = selected_song.get('title', 'Sin título')
-
-                    if song_url is None:
-                        await ctx.send("Error: no se pudo obtener la URL de la canción seleccionada.")
-                        return
-
-                    # Añadir la canción seleccionada a la cola
-                    self.song_queue.append({'url': song_url, 'title': song_title})
-                    await ctx.send(f"🎶 Canción seleccionada: **{song_title}** añadida a la cola.")
-
-                    # Conectar al canal de voz si el bot no está conectado
-                    if not ctx.voice_client:  # Si no está en un canal de voz
-                        if ctx.author.voice:
-                            channel = ctx.author.voice.channel
-                            self.voice_client = await channel.connect()
-                            await ctx.send("🎶 Conectando al canal de voz...")
-
-                    # Reproducir si no hay nada sonando
-                    if self.voice_client and not self.voice_client.is_playing() and not self.current_song:
-                        await self.play_next(ctx)
-                except asyncio.TimeoutError:
-                    await ctx.send("Tiempo de respuesta agotado. Intenta de nuevo.")
+                    await ctx.send(results_message + "Responde con el número de la canción que quieres reproducir.")
+                    
+                    def check(msg):
+                        return msg.author == ctx.author and msg.channel == ctx.channel and msg.content.isdigit()
+                    
+                    try:
+                        response = await self.bot.wait_for('message', timeout=30.0, check=check)
+                        choice = int(response.content) - 1
+                        if 0 <= choice < len(search_results):
+                            selected_song = search_results[choice]
+                            song = {
+                                'url': selected_song['url'],
+                                'title': selected_song['title'],
+                                'duration': selected_song.get('duration', 0)  # Guardar duración
+                            }
+                            self.song_queue.append(song)
+                            await ctx.send(f"🎶 Canción seleccionada: {selected_song['title']} añadida a la cola.")
+                            
+                            if not self.voice_client.is_playing() and not self.current_song:
+                                await self._play_song(ctx)
+                        else:
+                            await ctx.send("Número de canción inválido.")
+                    except asyncio.TimeoutError:
+                        await ctx.send("Se agotó el tiempo para seleccionar una canción.")
+                else:
+                    await ctx.send("No se encontraron canciones.")
         except Exception as e:
             await ctx.send(f"Error durante la búsqueda: {e}")
+            print(f"Error durante la búsqueda: {e}")
 
     def format_duration(self, duration):
         """Convierte la duración de la canción de segundos a minutos:segundos"""
@@ -198,18 +178,28 @@ class Music(commands.Cog):
 
 
     async def _play_song(self, ctx):
-            """Reproduce una canción desde la cola"""
-            if self.song_queue:
-                song = self.song_queue.pop(0)
-                song_url = song['url']
-                song_title = song['title']
-                source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
-                self.current_song = song
-                await ctx.send(f"Reproduciendo: **{song_title}**")  # Mostrar el nombre del video
-            else:
-                self.current_song = None
+        """Reproduce una canción desde la cola"""
+        if self.song_queue:
+            song = self.song_queue.pop(0)
+            song_url = song['url']
+            song_title = song['title']
+            song_duration = song.get('duration', 0)  # Obtener la duración si está disponible
+            total_duration = self.format_duration(song_duration)
+            
+            source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
+            
+            self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
+            self.current_song = song
+            
+            # Anunciar la reproducción de la canción con la duración total
+            await ctx.send(f"Reproduciendo: **{song_title}** (Duración: {total_duration})")
+        else:
+            self.current_song = None
 
+def format_duration(self, seconds):
+    """Formatea la duración en segundos a formato minutos:segundos"""
+    minutes, seconds = divmod(seconds, 60)
+    return f"{minutes}:{seconds:02d}"
     async def play_next(self, ctx):
         if self.song_queue:
             song = self.song_queue.pop(0)
