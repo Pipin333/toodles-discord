@@ -119,8 +119,14 @@ class Music(commands.Cog):
 
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'verbose': True,
+            'quiet': False,
             'noplaylist': True,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '320',
+            }],
         }
 
         try:
@@ -133,45 +139,51 @@ class Music(commands.Cog):
                     await ctx.send("No se encontraron canciones.")
                     return
 
-                # Crear un mensaje con las coincidencias numeradas, manejando la duración si existe
+                # Crear un mensaje con las coincidencias numeradas
                 search_results = ""
                 for idx, song in enumerate(entries):
-                    song_title = song['title']
-                    duration = song.get('duration', None)
-                    if duration:  # Si la duración está presente, la convertimos
+                    song_title = song.get('title', 'Sin título')  # Si falta, mostrar "Sin título"
+                    duration = song.get('duration')  # Duración en segundos si está disponible
+
+                    if duration is not None:  # Si la duración existe, formatearla
                         duration_formatted = self.format_duration(duration)
-                    else:  # Si no, mostramos "N/A"
+                    else:  # Si no hay duración, mostrar "N/A"
                         duration_formatted = "N/A"
+                    
                     search_results += f"{idx + 1}. {song_title} ({duration_formatted})\n"
 
                 await ctx.send(f"**Canciones encontradas:**\n{search_results}\n\nResponde con el número de la canción que quieres reproducir.")
 
-                # Función para validar que la respuesta del usuario sea un número válido
+                # Validar que la respuesta del usuario sea un número válido
                 def check(msg):
                     return msg.author == ctx.author and msg.content.isdigit() and 1 <= int(msg.content) <= len(entries)
 
                 # Esperar la respuesta del usuario
                 try:
                     response = await self.bot.wait_for('message', timeout=30.0, check=check)
-                    choice = int(response.content) - 1  # Convertir a índice
+                    choice = int(response.content) - 1  # Convertir la elección a índice
 
                     # Obtener la canción seleccionada
                     selected_song = entries[choice]
-                    song_url = selected_song['url']
-                    song_title = selected_song['title']
+                    song_url = selected_song.get('url', None)
+                    song_title = selected_song.get('title', 'Sin título')
+
+                    if song_url is None:
+                        await ctx.send("Error: no se pudo obtener la URL de la canción seleccionada.")
+                        return
 
                     # Añadir la canción seleccionada a la cola
                     self.song_queue.append({'url': song_url, 'title': song_title})
                     await ctx.send(f"🎶 Canción seleccionada: **{song_title}** añadida a la cola.")
 
-                    # Verificar si el bot está en un canal de voz y conectarlo si es necesario
+                    # Conectar al canal de voz si el bot no está conectado
                     if not ctx.voice_client:  # Si no está en un canal de voz
                         if ctx.author.voice:
                             channel = ctx.author.voice.channel
                             self.voice_client = await channel.connect()
                             await ctx.send("🎶 Conectando al canal de voz...")
 
-                    # Si no hay ninguna canción reproduciéndose, empieza la reproducción
+                    # Reproducir si no hay nada sonando
                     if self.voice_client and not self.voice_client.is_playing() and not self.current_song:
                         await self.play_next(ctx)
                 except asyncio.TimeoutError:
@@ -181,11 +193,11 @@ class Music(commands.Cog):
 
     def format_duration(self, duration):
         """Convierte la duración de la canción de segundos a minutos:segundos"""
-        if duration is None:
-            return "N/A"
         minutes, seconds = divmod(duration, 60)
         return f"{minutes}:{seconds:02d}"
-        async def _play_song(self, ctx):
+
+
+    async def _play_song(self, ctx):
             """Reproduce una canción desde la cola"""
             if self.song_queue:
                 song = self.song_queue.pop(0)
