@@ -114,7 +114,7 @@ class Music(commands.Cog):
 
 
     @commands.command()
-    async def search(self, ctx, *, search: str):
+    async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
 
         ydl_opts = {
@@ -176,7 +176,6 @@ class Music(commands.Cog):
         minutes, seconds = divmod(duration, 60)
         return f"{minutes}:{seconds:02d}"
 
-
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola"""
         if self.song_queue:
@@ -188,18 +187,19 @@ class Music(commands.Cog):
             
             source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
             
-            self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
+            self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
             self.current_song = song
             
             # Anunciar la reproducción de la canción con la duración total
             await ctx.send(f"Reproduciendo: **{song_title}** (Duración: {total_duration})")
         else:
             self.current_song = None
+            
+    def format_duration(self, seconds):
+        """Formatea la duración en segundos a formato minutos:segundos"""
+        minutes, seconds = divmod(seconds, 60)
+        return f"{minutes}:{seconds:02d}"
 
-def format_duration(self, seconds):
-    """Formatea la duración en segundos a formato minutos:segundos"""
-    minutes, seconds = divmod(seconds, 60)
-    return f"{minutes}:{seconds:02d}"
     async def play_next(self, ctx):
         if self.song_queue:
             song = self.song_queue.pop(0)
