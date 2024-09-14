@@ -15,7 +15,7 @@ class Music(commands.Cog):
         self.start_time = None  # Variable para registrar el inicio de la canción
 
     async def delete_user_message(self, ctx):
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.1)
         try:
             await ctx.message.delete()
         except discord.Forbidden:
@@ -126,6 +126,7 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error al intentar reproducir la canción: {e}")
             print(f"Error al intentar reproducir la canción: {e}")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def search(self, ctx, *, query: str):
@@ -192,7 +193,8 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error durante la búsqueda: {e}")
             print(f"Error durante la búsqueda: {e}")
-
+        await self.delete_user_message(ctx)
+        
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola"""
         if self.song_queue:
@@ -214,7 +216,6 @@ class Music(commands.Cog):
                 await ctx.send("No estoy conectado a un canal de voz.")
         else:
             self.current_song = None
-
 
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola"""
@@ -240,6 +241,7 @@ class Music(commands.Cog):
             await ctx.send(f"🎶 Reproduciendo ahora: **{self.current_song['title']}** \nTiempo transcurrido: {formatted_elapsed_time} / {formatted_total_duration}")
         else:
             await ctx.send("No hay ninguna canción reproduciéndose en este momento.")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def queue(self, ctx):
@@ -252,6 +254,7 @@ class Music(commands.Cog):
             await ctx.send(queue_message)
         else:
             await ctx.send("La cola de canciones está vacía.")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def qAdd(self, ctx, position: int, *, title: str):
@@ -271,7 +274,7 @@ class Music(commands.Cog):
                 'preferredquality': '320',
             }],
         }
-
+        
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"ytsearch:{title}", download=False)
@@ -289,6 +292,7 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error al intentar agregar la canción: {e}")
             print(f"Error al intentar agregar la canción: {e}")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def qMove(self, ctx, current_index: int, new_index: int):
@@ -304,6 +308,7 @@ class Music(commands.Cog):
         song = self.song_queue.pop(current_index - 1)
         self.song_queue.insert(new_index - 1, song)
         await ctx.send(f"🎶 Canción movida de la posición {current_index} a la posición {new_index}.")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def qRemove(self, ctx, index: int):
@@ -314,12 +319,14 @@ class Music(commands.Cog):
 
         removed_song = self.song_queue.pop(index - 1)
         await ctx.send(f"🎶 Canción eliminada: **{removed_song['title']}**")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def qClear(self, ctx):
         """Limpia la cola de canciones"""
         self.song_queue.clear()
         await ctx.send("🎵 Cola de canciones limpia.")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def skip(self, ctx):
@@ -329,6 +336,7 @@ class Music(commands.Cog):
             await self.play_next(ctx)
         else:
             await ctx.send("No se está reproduciendo ninguna canción.")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def pause(self, ctx):
@@ -338,6 +346,7 @@ class Music(commands.Cog):
             await ctx.send("⏸️ Canción pausada.")
         else:
             await ctx.send("No se está reproduciendo ninguna canción.")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def resume(self, ctx):
@@ -347,6 +356,7 @@ class Music(commands.Cog):
             await ctx.send("▶️ Canción reanudada.")
         else:
             await ctx.send("No hay ninguna canción pausada.")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def stop(self, ctx):
@@ -358,6 +368,7 @@ class Music(commands.Cog):
             await ctx.send("🛑 Canción detenida y cola de canciones limpia.")
         else:
             await ctx.send("No se está reproduciendo ninguna canción.")
+        await self.delete_user_message(ctx)
 
     @commands.command()
     async def leave(self, ctx):
@@ -370,6 +381,7 @@ class Music(commands.Cog):
             await ctx.send("👋 Desconectado del canal de voz.")
         else:
             await ctx.send("No estoy en un canal de voz.")
+        await self.delete_user_message(ctx)
 
     @tasks.loop(seconds=60)
     async def check_inactivity(self):
