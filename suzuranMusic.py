@@ -14,6 +14,15 @@ class Music(commands.Cog):
         self.check_inactivity.start()  # Iniciar la tarea de verificación de inactividad
         self.start_time = None  # Variable para registrar el inicio de la canción
 
+    def delete_user_message(self, ctx):
+        await asyncio.sleep(0.3)
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            await ctx.send("No tengo permisos para borrar mensajes.")
+        except discord.HTTPException as e:
+            await ctx.send(f"Error al borrar el mensaje: {e}")
+    
     def format_duration(self, duration):
         """Convierte la duración de la canción de segundos a minutos:segundos"""
         minutes, seconds = divmod(duration, 60)
@@ -65,16 +74,8 @@ class Music(commands.Cog):
                 await ctx.send("🎶 Entrando en el canal de voz.")
             else:
                 await ctx.send("No estás conectado a un canal de voz.")
+        await self.delete_user_message(ctx)
                 
-        await asyncio.sleep(0.5)
-        try:
-            await ctx.send("En await ctx.message.delete()")
-            await ctx.message.delete()
-        except discord.Forbidden:
-            await ctx.send("No tengo permisos para borrar mensajes.")
-        except discord.HTTPException as e:
-            await ctx.send(f"Error al borrar el mensaje: {e}")
-
     @commands.command()
     async def play(self, ctx, *, search: str):
         """Agrega una canción a la cola y empieza la reproducción si no se está reproduciendo ya"""
