@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-import requests
+import aiohttp
 import json
 
 class SteamMarket(commands.Cog):
@@ -9,12 +9,14 @@ class SteamMarket(commands.Cog):
         self.tracked_items = {}  # Diccionario para seguir los artículos rastreados
 
     async def get_item_data(self, url):
-        """Obtiene los datos del artículo a partir de la URL."""
+        """Obtiene los datos del artículo a partir de la URL usando aiohttp."""
         try:
-            response = requests.get(url)
-            response.raise_for_status()  # Lanza un error si la respuesta es un código de error HTTP
-            return response.json()
-        except requests.RequestException as e:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    if response.status != 200:
+                        return None
+                    return await response.json()  # Retorna los datos en formato JSON
+        except Exception as e:
             print(f"Error al obtener datos del artículo: {e}")
             return None
 
