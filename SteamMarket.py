@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import aiohttp
 import json
+import os
 
 class SteamMarket(commands.Cog):
     def __init__(self, bot):
