@@ -70,16 +70,33 @@ class SteamMarket(commands.Cog):
         else:
             await ctx.send("No se pudo obtener el número de artículos en venta.")
 
+    def load_tracked_items(self):
+        """Cargar los artículos rastreados desde un archivo JSON."""
+        try:
+            with open('tracked_items.json', 'r') as file:
+                return json.load(file)
+        except FileNotFoundError:
+            return {}  # Si el archivo no existe, devuelve un diccionario vacío
+
+    def save_tracked_items(self):
+        """Guardar los artículos rastreados en un archivo JSON."""
+        with open('tracked_items.json', 'w') as file:
+            json.dump(self.tracked_items, file, indent=4)
+
     @commands.command()
     async def track(self, ctx, market_hash_name: str):
         """Realiza un seguimiento de los datos del artículo."""
+        if market_hash_name in self.tracked_items:
+            await ctx.send(f"El artículo '{market_hash_name}' ya está siendo rastreado.")
+            return
+
         data = await self.get_item_data(market_hash_name)
         if data:
             self.tracked_items[market_hash_name] = data  # Guardar datos en el diccionario
+            self.save_tracked_items()  # Guardar los artículos en el archivo JSON
             await ctx.send(f"Artículo '{market_hash_name}' añadido a seguimiento.")
         else:
             await ctx.send("No se pudo añadir el artículo a seguimiento.")
-
     @commands.command()
     async def track_info(self, ctx, market_hash_name: str):
         """Muestra la información del artículo rastreado."""
