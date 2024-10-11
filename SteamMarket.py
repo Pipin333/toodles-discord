@@ -4,10 +4,12 @@ import aiohttp
 import json
 import os
 
+API = os.getenv("STEAM_API")
+
 class SteamMarket(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.api_key = 'TU_API_KEY'  # Añade aquí tu clave de SteamAPIs.com
+        self.api_key = API  # Añade aquí tu clave de SteamAPIs.com
         self.tracked_items = {}  # Diccionario para seguir los artículos rastreados
 
     async def get_item_data(self, market_hash_name):
