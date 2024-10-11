@@ -83,4 +83,4 @@ class SteamMarket(commands.Cog):
             await ctx.send("No se está rastreando este artículo.")
 
 async def setup(bot):
-    bot.add_cog(SteamMarket(bot))
+    await bot.add_cog(SteamMarket(bot))
