@@ -1,3 +1,5 @@
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
 import discord
 from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
