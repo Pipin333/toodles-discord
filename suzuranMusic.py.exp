@@ -1,8 +1,10 @@
 import discord
+import requests
 from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio
 import time
+import os
 
 class Music(commands.Cog):
     def __init__(self, bot):
@@ -13,6 +15,56 @@ class Music(commands.Cog):
         self.play_next_song = asyncio.Event()  # Evento para gestionar la reproducción de la siguiente canción
         self.check_inactivity.start()  # Iniciar la tarea de verificación de inactividad
         self.start_time = None  # Variable para registrar el inicio de la canción
+        self.spotify_token = self.get_spotify_token()
+
+        # Inicializa Spotipy
+        client_id = os.getenv('client_id')
+        client_secret = os.getenv('client_secret')
+        credentials = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+        self.sp = spotipy.Spotify(auth_manager=credentials)
+
+    def get_spotify_token(self):
+        client_id = os.getenv('client_id')
+        client_secret = os.getenv('client_secret')
+        auth_url = 'https://accounts.spotify.com/api/token'
+        auth_response = requests.post(auth_url, {
+            'grant_type': 'client_credentials',
+            'client_id': client_id,
+            'client_secret': client_secret,
+        })
+        auth_response_data = auth_response.json()
+        return auth_response_data['access_token']
+
+    def search_spotify_playlist(self, playlist_id):
+        search_url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
+        headers = {
+            'Authorization': f'Bearer {self.spotify_token}'
+        }
+        response = requests.get(search_url, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Error en la solicitud a Spotify: {response.status_code}")
+
+    async def play_spotify(self, ctx, link: str):
+        playlist_id = link.split('/')[-1].split('?')[0]
+        try:
+            results = self.search_spotify_playlist(playlist_id)
+            song_titles = []
+
+            for item in results['items']:
+                track = item['track']
+                song_title = track['name']
+                song_titles.append(song_title)
+
+            await ctx.send(f"🎶 Canciones añadidas de la lista de reproducción: {link}")
+
+            for title in song_titles:
+                await self.search_youtube(ctx, title)
+
+        except Exception as e:
+            await ctx.send(f"Error al intentar reproducir la lista de reproducción: {e}")
+            print(f"Error: {e}")
 
     async def delete_user_message(self, ctx):
         await asyncio.sleep(0.1)
@@ -75,9 +127,10 @@ class Music(commands.Cog):
                 await ctx.send("No estás conectado a un canal de voz.")
         await self.delete_user_message(ctx)
                 
+
     @commands.command()
     async def play(self, ctx, *, search: str):
-        """Agrega una canción a la cola y empieza la reproducción si no se está reproduciendo ya"""
+        """Agrega una canción o lista de reproducción a la cola y empieza la reproducción si no se está reproduciendo ya"""
         if not ctx.author.voice:
             await ctx.send("Necesitas estar en un canal de voz para reproducir música.")
             return
@@ -87,11 +140,72 @@ class Music(commands.Cog):
             self.voice_client = await channel.connect()
             await ctx.send("🎶 Conectando al canal de voz...")
 
-        # Buscar información de la canción
+        # Verifica si el enlace es de Spotify o YouTube
+        if "spotify.com" in search:
+            # Procesar enlace de Spotify
+            await self.play_spotify(ctx, search)
+        elif "youtube.com" in search or "youtu.be" in search:
+            # Procesar enlace de YouTube
+            await self.play_youtube(ctx, search)
+        else:
+            # Buscar información de la canción por nombre
+            await self.search_youtube(ctx, search)
+
+    async def play_spotify(self, ctx, link: str):
+        """Extrae canciones de una lista de reproducción de Spotify y las pasa a search_youtube"""
+        playlist_id = link.split('/')[-1].split('?')[0]  # Extrae el ID de la lista de reproducción
+
+        try:
+            results = self.sp.playlist_tracks(playlist_id)
+            song_titles = []
+
+            for item in results['items']:
+                track = item['track']
+                song_title = track['name']
+                song_titles.append(song_title)
+
+            await ctx.send(f"🎶 Canciones añadidas de la lista de reproducción: {link}")
+
+            # Llama al comando search_youtube para buscar las canciones en YouTube
+            for title in song_titles:
+                await self.search_youtube(ctx, title)
+
+        except Exception as e:
+            await ctx.send(f"Error al intentar reproducir la lista de reproducción: {e}")
+            print(f"Error al intentar reproducir la lista de reproducción: {e}")
+
+    async def play_youtube(self, ctx, link: str):
+        """Reproduce una canción de YouTube"""
         ydl_opts = {
             'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '320',
+            }],
+        }
+
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(link, download=False)
+                song_url = info['url']
+                song_title = info['title']
+                song_duration = info.get('duration', 0)
+
+                self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
+
+                await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
+
+                if not self.voice_client.is_playing() and not self.current_song:
+                    await self._play_song(ctx)
+        except Exception as e:
+            await ctx.send(f"Error al intentar reproducir la canción: {e}")
+            print(f"Error al intentar reproducir la canción: {e}")
+
+    async def search_youtube(self, ctx, search: str):
+        """Buscar información de la canción usando el nombre"""
+        ydl_opts = {
+            'format': 'bestaudio/best',
             'noplaylist': True,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
@@ -104,30 +218,23 @@ class Music(commands.Cog):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"ytsearch:{search}", download=False)
                 if info.get('entries'):
-                    # Tomar la primera canción encontrada
                     song_info = info['entries'][0]
                     song_url = song_info['url']
                     song_title = song_info['title']
-                    song_duration = song_info.get('duration', 0)  # Obtener duración
+                    song_duration = song_info.get('duration', 0)
 
-                    # Añadir la canción a la cola
                     self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
 
                     await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
 
-                    # Si no hay ninguna canción reproduciéndose, empieza la reproducción
                     if not self.voice_client.is_playing() and not self.current_song:
-                        if self.voice_client:  # Verifica que voice_client no sea None
-                            await self._play_song(ctx)
-                        else:
-                            await ctx.send("No se pudo conectar al canal de voz.")
+                        await self._play_song(ctx)
                 else:
                     await ctx.send("No se encontró la canción.")
         except Exception as e:
             await ctx.send(f"Error al intentar reproducir la canción: {e}")
             print(f"Error al intentar reproducir la canción: {e}")
-        await self.delete_user_message(ctx)
-
+            
     @commands.command()
     async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
@@ -383,6 +490,16 @@ class Music(commands.Cog):
             await ctx.send("No estoy en un canal de voz.")
         await self.delete_user_message(ctx)
 
+    @commands.command(name='p')
+    async def play_short(self, ctx, *, search: str):
+        """Abreviación del comando play"""
+        await self.play(ctx, search)
+
+    @commands.command(name='q')
+    async def queue_short(self, ctx, *, search: str):
+        """Abreviación del comando queue"""
+        await self.queue(ctx, search)
+
     @tasks.loop(seconds=60)
     async def check_inactivity(self):
         """Verifica si el bot debe desconectarse por inactividad"""
@@ -395,4 +512,4 @@ class Music(commands.Cog):
                 print("Desconectado por inactividad.")
 
 async def setup(bot):
-   await bot.add_cog(Music(bot))
+   await bot.add_cog(Music(bot)) 
