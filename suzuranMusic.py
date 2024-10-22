@@ -265,6 +265,16 @@ class Music(commands.Cog):
             await ctx.send("La cola de canciones está vacía.")
         await self.delete_user_message(ctx)
 
+     @commands.command()
+    async def shuffle(self, ctx):
+        """Revuelve la cola de canciones."""
+        if len(self.song_queue) > 1:
+            random.shuffle(self.song_queue)
+            await ctx.send("🔀 La cola de canciones ha sido revuelta.")
+        else:
+            await ctx.send("No hay suficientes canciones en la cola para revolver.")  
+        await self.delete_user_message(ctx)
+        
     @commands.command(name='q')
     async def queue_short(self, ctx, *, search: str):
         """Abreviación del comando queue"""
