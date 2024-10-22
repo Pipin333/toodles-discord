@@ -100,9 +100,41 @@ class Music(commands.Cog):
         # Verifica si es una URL de Spotify
         if "spotify.com" in search:
             await self.play_spotify(ctx, search)
+        # Verifica si es una URL de YouTube
+        elif "youtube.com" in search or "youtu.be" in search:
+            await self.play_youtube_playlist(ctx, search)
         else:
-            await self.search_youtube(ctx, search)
+            await self.search_youtube_and_queue(ctx, search)
     
+    async def play_youtube_playlist(self, ctx, playlist_url):
+        """Reproduce una playlist de YouTube"""
+        playlist_id = playlist_url.split('list=')[1].split('&')[0]  # Extraer el ID de la lista de reproducción
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'extract_flat': True,
+        }
+    
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                playlist_info = ydl.extract_info(playlist_url, download=False)
+                songs_added = 0  # Contador de canciones
+    
+                for entry in playlist_info['entries']:
+                    song_url = entry['url']
+                    song_title = entry['title']
+                    self.song_queue.append({'url': song_url, 'title': song_title})
+                    songs_added += 1  # Incrementar contador
+    
+                if songs_added > 0:
+                    await ctx.send(f"🎶 Se añadieron **{songs_added}** canciones a la cola.")
+                    # Iniciar la reproducción de la primera canción si no se está reproduciendo
+                    if not self.voice_client.is_playing():
+                        await self._play_song(ctx)
+    
+        except Exception as e:
+            await ctx.send(f"Error al intentar reproducir la playlist de YouTube: {e}")
+        
     async def play_spotify(self, ctx, playlist_url):
         """Reproduce una playlist de Spotify y añade canciones a la cola."""
         playlist_id = playlist_url.split('/')[-1].split('?')[0]
