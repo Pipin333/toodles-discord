@@ -4,6 +4,17 @@ from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio
 import time
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+import os
+
+# Credenciales de Spotify
+SPOTIFY_CLIENT_ID = os.getenv('client_id')
+SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
+
+# Configuración del cliente de Spotify
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
+
 
 class Music(commands.Cog):
     def __init__(self, bot):
@@ -133,28 +144,72 @@ class Music(commands.Cog):
             print(f"Error al intentar reproducir la canción: {e}")
         await self.delete_user_message(ctx)
 
+    @commands.command()
+    async def spotify_playlist(self, ctx, playlist_url: str):
+        """Agrega canciones de una playlist de Spotify y las reproduce desde YouTube."""
+        try:
+            # Extraer el ID de la playlist de la URL
+            playlist_id = playlist_url.split("/")[-1].split("?")[0]
+
+            # Obtener los detalles de la playlist
+            results = sp.playlist_tracks(playlist_id)
+
+            # Extraer los nombres de las canciones
+            for item in results['items']:
+                track = item['track']
+                track_name = track['name'] + " " + track['artists'][0]['name']  # Nombre + Artista
+
+                # Buscar la canción en YouTube
+                ydl_opts = {
+                    'format': 'bestaudio/best',
+                    'noplaylist': True,
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '320',
+                    }],
+                }
+
+                with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(f"ytsearch:{track_name}", download=False)
+                    if info.get('entries'):
+                        song_info = info['entries'][0]
+                        song_url = song_info['url']
+                        song_title = song_info['title']
+                        song_duration = song_info.get('duration', 0)
+
+                        # Añadir la canción a la cola
+                        self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
+
+                        await ctx.send(f"🎶 Añadido desde Spotify: **{song_title}**")
+            
+            # Si no hay ninguna canción reproduciéndose, empezar la reproducción
+            if not self.voice_client.is_playing() and not self.current_song:
+                await self._play_song(ctx)
+
+        except Exception as e:
+            await ctx.send(f"Error al agregar la playlist de Spotify: {e}")
+            print(f"Error al agregar la playlist de Spotify: {e}")
+        
+        await self.delete_user_message(ctx)
+
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola"""
         if self.song_queue:
             song = self.song_queue.pop(0)
             song_url = song['url']
             song_title = song['title']
-            song_duration = song.get('duration', 0)  # Obtener la duración si está disponible
-            total_duration = self.format_duration(song_duration)
 
             if self.voice_client and self.voice_client.is_connected():
                 source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
                 self.current_song = song
-                self.start_time = time.time()  # Inicializar el tiempo de inicio
 
-                # Anunciar la reproducción de la canción con la duración total
-                await ctx.send(f"Reproduciendo: **{song_title}** (Duración: {total_duration})")
+                await ctx.send(f"Reproduciendo: **{song_title}**")
             else:
                 await ctx.send("No estoy conectado a un canal de voz.")
         else:
             self.current_song = None
-
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola"""
         if self.song_queue:
