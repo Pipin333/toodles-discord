@@ -77,7 +77,7 @@ class Music(commands.Cog):
                 
     @commands.command()
     async def play(self, ctx, *, search: str):
-        """Agrega una canción a la cola y empieza la reproducción si no se está reproduciendo ya"""
+        """Agrega una canción o playlist a la cola y empieza la reproducción si no se está reproduciendo ya"""
         if not ctx.author.voice:
             await ctx.send("Necesitas estar en un canal de voz para reproducir música.")
             return
@@ -87,12 +87,11 @@ class Music(commands.Cog):
             self.voice_client = await channel.connect()
             await ctx.send("🎶 Conectando al canal de voz...")
 
-        # Buscar información de la canción
+        # Configuración para yt_dlp
         ydl_opts = {
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
@@ -102,31 +101,56 @@ class Music(commands.Cog):
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"ytsearch:{search}", download=False)
-                if info.get('entries'):
-                    # Tomar la primera canción encontrada
-                    song_info = info['entries'][0]
-                    song_url = song_info['url']
-                    song_title = song_info['title']
-                    song_duration = song_info.get('duration', 0)  # Obtener duración
+                info = ydl.extract_info(search, download=False)
 
-                    # Añadir la canción a la cola
+                # Verificar si es una lista de reproducción
+                if 'entries' in info:
+                    await ctx.send(f"🎶 Añadiendo lista de reproducción: **{info['title']}** con {len(info['entries'])} canciones.")
+                    for entry in info['entries']:
+                        song_url = entry['url']
+                        song_title = entry['title']
+                        song_duration = entry.get('duration', 0)  # Obtener duración
+                        self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
+                else:
+                    # Es una canción única
+                    song_url = info['url']
+                    song_title = info['title']
+                    song_duration = info.get('duration', 0)  # Obtener duración
                     self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
-
                     await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
 
-                    # Si no hay ninguna canción reproduciéndose, empieza la reproducción
-                    if not self.voice_client.is_playing() and not self.current_song:
-                        if self.voice_client:  # Verifica que voice_client no sea None
-                            await self._play_song(ctx)
-                        else:
-                            await ctx.send("No se pudo conectar al canal de voz.")
-                else:
-                    await ctx.send("No se encontró la canción.")
+                # Si no hay ninguna canción reproduciéndose, empieza la reproducción
+                if not self.voice_client.is_playing() and not self.current_song:
+                    if self.voice_client:  # Verifica que voice_client no sea None
+                        await self._play_song(ctx)
+                    else:
+                        await ctx.send("No se pudo conectar al canal de voz.")
         except Exception as e:
             await ctx.send(f"Error al intentar reproducir la canción: {e}")
             print(f"Error al intentar reproducir la canción: {e}")
         await self.delete_user_message(ctx)
+
+    async def _play_song(self, ctx):
+        """Reproduce una canción desde la cola"""
+        if self.song_queue:
+            song = self.song_queue.pop(0)
+            song_url = song['url']
+            song_title = song['title']
+            song_duration = song.get('duration', 0)  # Obtener la duración si está disponible
+            total_duration = self.format_duration(song_duration)
+
+            if self.voice_client and self.voice_client.is_connected():
+                source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
+                self.current_song = song
+                self.start_time = time.time()  # Inicializar el tiempo de inicio
+
+                # Anunciar la reproducción de la canción con la duración total
+                await ctx.send(f"Reproduciendo: **{song_title}** (Duración: {total_duration})")
+            else:
+                await ctx.send("No estoy conectado a un canal de voz.")
+        else:
+            self.current_song = None
 
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
@@ -199,28 +223,6 @@ class Music(commands.Cog):
             await ctx.send(f"Error durante la búsqueda: {e}")
             print(f"Error durante la búsqueda: {e}")
         await self.delete_user_message(ctx)
-        
-    async def _play_song(self, ctx):
-        """Reproduce una canción desde la cola"""
-        if self.song_queue:
-            song = self.song_queue.pop(0)
-            song_url = song['url']
-            song_title = song['title']
-            song_duration = song.get('duration', 0)  # Obtener la duración si está disponible
-            total_duration = self.format_duration(song_duration)
-
-            if self.voice_client and self.voice_client.is_connected():
-                source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))  # Reproducir la canción y configurar para la siguiente
-                self.current_song = song
-                self.start_time = time.time()  # Inicializar el tiempo de inicio
-
-                # Anunciar la reproducción de la canción con la duración total
-                await ctx.send(f"Reproduciendo: **{song_title}** (Duración: {total_duration})")
-            else:
-                await ctx.send("No estoy conectado a un canal de voz.")
-        else:
-            self.current_song = None
 
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola"""
