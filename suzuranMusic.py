@@ -22,7 +22,7 @@ class Music(commands.Cog):
 
     
 
-    async def delete_user_message(self, ctx):
+	async def delete_user_message(self, ctx):
         await asyncio.sleep(0.1)
         try:
             await ctx.message.delete()
