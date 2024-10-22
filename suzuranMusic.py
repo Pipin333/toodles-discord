@@ -89,7 +89,7 @@ class Music(commands.Cog):
                 
     @commands.command()
     async def play(self, ctx, *, search: str):
-        """Agrega una canción o playlist a la cola y empieza la reproducción si no se está reproduciendo ya"""
+        """Agrega una canción o playlist a la cola y empieza la reproducción"""
         if not ctx.author.voice:
             await ctx.send("Necesitas estar en un canal de voz para reproducir música.")
             return
@@ -97,101 +97,53 @@ class Music(commands.Cog):
         if not ctx.voice_client:
             channel = ctx.author.voice.channel
             self.voice_client = await channel.connect()
-            await ctx.send("🎶 Conectando al canal de voz...")
 
-        # Configuración para yt_dlp
+        # Verifica si es una URL de Spotify
+        if "spotify.com" in search:
+            await self.play_spotify(ctx, search)
+        else:
+            await self.search_youtube_and_queue(ctx, search)
+
+    async def play_spotify(self, ctx, playlist_url):
+        """Reproduce una playlist de Spotify"""
+        playlist_id = playlist_url.split('/')[-1].split('?')[0]
+        results = self.sp.playlist_tracks(playlist_id)
+        
+        # Obtener detalles de las canciones
+        for item in results['items']:
+            track = item['track']
+            song_title = track['name']
+            artist_name = ', '.join([artist['name'] for artist in track['artists']])
+
+            # Realizar búsqueda en YouTube
+            search_query = f"{song_title} {artist_name}"
+            await self.search_youtube_and_queue(ctx, search_query)
+
+        if self.voice_client and not self.voice_client.is_playing():
+            await self._play_song(ctx)
+
+    async def search_youtube_and_queue(self, ctx, search_query):
+        """Busca en YouTube y agrega la canción a la cola"""
         ydl_opts = {
             'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '320',
-            }],
+            'quiet': True,
         }
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(search, download=False)
+                info = ydl.extract_info(f"ytsearch:{search_query}", download=False)
+                if info.get('entries'):
+                    song_info = info['entries'][0]
+                    song_url = song_info['url']
+                    song_title = song_info['title']
+                    song_duration = song_info.get('duration', 0)
 
-                # Verificar si es una lista de reproducción
-                if 'entries' in info:
-                    await ctx.send(f"🎶 Añadiendo lista de reproducción: **{info['title']}** con {len(info['entries'])} canciones.")
-                    for entry in info['entries']:
-                        song_url = entry['url']
-                        song_title = entry['title']
-                        song_duration = entry.get('duration', 0)  # Obtener duración
-                        self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
-                else:
-                    # Es una canción única
-                    song_url = info['url']
-                    song_title = info['title']
-                    song_duration = info.get('duration', 0)  # Obtener duración
                     self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
                     await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
-
-                # Si no hay ninguna canción reproduciéndose, empieza la reproducción
-                if not self.voice_client or not self.voice_client.is_connected():
-                    channel = ctx.author.voice.channel
-                    self.voice_client = await channel.connect()
-
-                if not self.voice_client.is_playing() and not self.current_song:
-                    await self._play_song(ctx)
-                    
+                else:
+                    await ctx.send("No se encontró la canción.")
         except Exception as e:
-            await ctx.send(f"Error al intentar reproducir la canción: {e}")
-            print(f"Error al intentar reproducir la canción: {e}")
-        await self.delete_user_message(ctx)
-
-    @commands.command()
-    async def spotify_playlist(self, ctx, playlist_url: str):
-        """Agrega canciones de una playlist de Spotify y las reproduce desde YouTube."""
-        try:
-            # Extraer el ID de la playlist de la URL
-            playlist_id = playlist_url.split("/")[-1].split("?")[0]
-
-            # Obtener los detalles de la playlist
-            results = sp.playlist_tracks(playlist_id)
-
-            # Extraer los nombres de las canciones
-            for item in results['items']:
-                track = item['track']
-                track_name = track['name'] + " " + track['artists'][0]['name']  # Nombre + Artista
-
-                # Buscar la canción en YouTube
-                ydl_opts = {
-                    'format': 'bestaudio/best',
-                    'noplaylist': True,
-                    'postprocessors': [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        'preferredquality': '320',
-                    }],
-                }
-
-                with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(f"ytsearch:{track_name}", download=False)
-                    if info.get('entries'):
-                        song_info = info['entries'][0]
-                        song_url = song_info['url']
-                        song_title = song_info['title']
-                        song_duration = song_info.get('duration', 0)
-
-                        # Añadir la canción a la cola
-                        self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
-
-                        await ctx.send(f"🎶 Añadido desde Spotify: **{song_title}**")
-            
-            # Si no hay ninguna canción reproduciéndose, empezar la reproducción
-            if not self.voice_client.is_playing() and not self.current_song:
-                await self._play_song(ctx)
-
-        except Exception as e:
-            await ctx.send(f"Error al agregar la playlist de Spotify: {e}")
-            print(f"Error al agregar la playlist de Spotify: {e}")
-        
-        await self.delete_user_message(ctx)
+            await ctx.send(f"Error al intentar buscar la canción: {e}")
 
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola"""
@@ -200,16 +152,15 @@ class Music(commands.Cog):
             song_url = song['url']
             song_title = song['title']
 
-            if self.voice_client and self.voice_client.is_connected():
-                source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
-                self.current_song = song
-
+            if self.voice_client:
+                source = discord.FFmpegPCMAudio(song_url)
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_song(ctx)))
                 await ctx.send(f"Reproduciendo: **{song_title}**")
             else:
                 await ctx.send("No estoy conectado a un canal de voz.")
         else:
-            self.current_song = None
+            await ctx.send("No hay más canciones en la cola.")
+
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola"""
         if self.song_queue:
