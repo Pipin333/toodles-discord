@@ -12,10 +12,6 @@ import os
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
 SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
 
-# Configuración del cliente de Spotify
-self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
-
-
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -25,6 +21,9 @@ class Music(commands.Cog):
         self.play_next_song = asyncio.Event()  # Evento para gestionar la reproducción de la siguiente canción
         self.check_inactivity.start()  # Iniciar la tarea de verificación de inactividad
         self.start_time = None  # Variable para registrar el inicio de la canción
+        
+        # Configuración del cliente de Spotify
+        self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
 
     async def delete_user_message(self, ctx):
         await asyncio.sleep(0.1)
