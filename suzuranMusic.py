@@ -128,6 +128,11 @@ class Music(commands.Cog):
             print(f"Error al intentar reproducir la canción: {e}")
         await self.delete_user_message(ctx)
 
+    @commands.command(name='p')
+    async def play_short(self, ctx, *, search: str):
+        """Abreviación del comando play"""
+        await self.play(ctx, search)
+    
     @commands.command()
     async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
@@ -256,8 +261,13 @@ class Music(commands.Cog):
             await ctx.send("La cola de canciones está vacía.")
         await self.delete_user_message(ctx)
 
+    @commands.command(name='q')
+    async def queue_short(self, ctx, *, search: str):
+        """Abreviación del comando queue"""
+        await self.queue(ctx, search)
+
     @commands.command()
-    async def qAdd(self, ctx, position: int, *, title: str):
+    async def add(self, ctx, position: int, *, title: str):
         """Agrega una canción a una posición específica en la cola"""
         if position < 1:
             await ctx.send("La posición debe ser mayor que 0.")
@@ -295,7 +305,7 @@ class Music(commands.Cog):
         await self.delete_user_message(ctx)
 
     @commands.command()
-    async def qMove(self, ctx, current_index: int, new_index: int):
+    async def move(self, ctx, current_index: int, new_index: int):
         """Mueve una canción a una nueva posición en la cola"""
         if current_index < 1 or new_index < 1:
             await ctx.send("Los índices deben ser mayores que 0.")
@@ -311,7 +321,7 @@ class Music(commands.Cog):
         await self.delete_user_message(ctx)
 
     @commands.command()
-    async def qRemove(self, ctx, index: int):
+    async def remove(self, ctx, index: int):
         """Elimina una canción de la cola por su índice"""
         if index < 1 or index > len(self.song_queue):
             await ctx.send("Índice fuera de rango.")
@@ -322,7 +332,7 @@ class Music(commands.Cog):
         await self.delete_user_message(ctx)
 
     @commands.command()
-    async def qClear(self, ctx):
+    async def clear(self, ctx):
         """Limpia la cola de canciones"""
         self.song_queue.clear()
         await ctx.send("🎵 Cola de canciones limpia.")
