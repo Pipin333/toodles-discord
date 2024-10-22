@@ -137,9 +137,9 @@ class Music(commands.Cog):
                     song_title = entry['title']
                     self.song_queue.append({'url': song_url, 'title': song_title})
 
-                # Reproducir la primera canción
-                if self.voice_client and not self.voice_client.is_playing():
-                    first_song = self.song_queue[0]
+                # Si hay canciones en la cola y no está reproduciendo nada, reproducir la primera canción
+                if self.song_queue and not self.voice_client.is_playing():
+                    first_song = self.song_queue.pop(0)  # Sacar la primera canción de la cola
                     await self._play_song(ctx, first_song['url'], first_song['title'])
 
         except Exception as e:
@@ -149,10 +149,18 @@ class Music(commands.Cog):
         """Reproduce una canción desde la cola"""
         if self.voice_client:
             source = discord.FFmpegPCMAudio(song_url)
-            self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_song(ctx, None, None)))
+            self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next_song(ctx)))
             await ctx.send(f"Reproduciendo: **{song_title}**")
         else:
             await ctx.send("No estoy conectado a un canal de voz.")
+
+    async def _play_next_song(self, ctx):
+        """Reproduce la siguiente canción en la cola automáticamente"""
+        if self.song_queue:
+            next_song = self.song_queue.pop(0)
+            await self._play_song(ctx, next_song['url'], next_song['title'])
+        else:
+            await ctx.send("No hay más canciones en la cola.")
 
     async def search_youtube(self, search_query):
         """Busca en YouTube y devuelve información de la canción."""
@@ -171,14 +179,6 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error al intentar buscar la canción: {e}")
             return None
-        
-    async def _play_next_song(self, ctx):
-        """Reproduce la siguiente canción en la cola"""
-        if self.song_queue:
-            await self._play_song(ctx)
-        else:
-            self.current_song = None
-            await ctx.send("No hay más canciones en la cola.")
 
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
