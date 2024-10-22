@@ -265,7 +265,7 @@ class Music(commands.Cog):
             await ctx.send("La cola de canciones está vacía.")
         await self.delete_user_message(ctx)
 
-     @commands.command()
+    @commands.command()
     async def shuffle(self, ctx):
         """Revuelve la cola de canciones."""
         if len(self.song_queue) > 1:
