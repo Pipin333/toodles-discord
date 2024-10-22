@@ -101,33 +101,46 @@ class Music(commands.Cog):
         if "spotify.com" in search:
             await self.play_spotify(ctx, search)
         else:
-            await self.search_youtube_and_queue(ctx, search)
+            await self.search_youtube(ctx, search)
     
     async def play_spotify(self, ctx, playlist_url):
-        """Reproduce una playlist de Spotify"""
+        """Reproduce una playlist de Spotify y añade canciones a la cola."""
         playlist_id = playlist_url.split('/')[-1].split('?')[0]
         results = self.sp.playlist_tracks(playlist_id)
     
-        songs_added = 0  # Contador de canciones añadidas
+        songs_added = 0  # Contador de canciones
+        first_song_url = None  # URL de la primera canción
+    
         # Obtener detalles de las canciones
-        for item in results['items']:
+        for idx, item in enumerate(results['items']):
             track = item['track']
             song_title = track['name']
             artist_name = ', '.join([artist['name'] for artist in track['artists']])
     
             # Realizar búsqueda en YouTube
             search_query = f"{song_title} {artist_name}"
-            await self.search_youtube_and_queue(ctx, search_query)
-            songs_added += 1  # Incrementar contador
+            song_info = await self.search_youtube(search_query)
+            
+            if song_info:
+                song_url = song_info['url']
+                self.song_queue.append({'url': song_url, 'title': song_title})
+    
+                if idx == 0:  # Si es la primera canción
+                    first_song_url = song_url
+                
+                songs_added += 1  # Incrementar contador
     
         if songs_added > 0:
             await ctx.send(f"🎶 Se añadieron **{songs_added}** canciones a la cola.")
+            
+            # Iniciar la reproducción de la primera canción
+            if first_song_url and self.voice_client and not self.voice_client.is_playing():
+                source = discord.FFmpegPCMAudio(first_song_url)
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_song(ctx)))
+                await ctx.send(f"Reproduciendo: **{results['items'][0]['track']['name']}**")
     
-        if self.voice_client and not self.voice_client.is_playing():
-            await self._play_song(ctx)
-    
-    async def search_youtube_and_queue(self, ctx, search_query):
-        """Busca en YouTube y agrega la canción a la cola"""
+    async def search_youtube(self, search_query):
+        """Busca en YouTube y devuelve información de la canción."""
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,
@@ -137,17 +150,13 @@ class Music(commands.Cog):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"ytsearch:{search_query}", download=False)
                 if info.get('entries'):
-                    song_info = info['entries'][0]
-                    song_url = song_info['url']
-                    song_title = song_info['title']
-                    song_duration = song_info.get('duration', 0)
-    
-                    self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
+                    return {'url': info['entries'][0]['url'], 'title': info['entries'][0]['title']}
                 else:
-                    await ctx.send("No se encontró la canción.")
+                    return None
         except Exception as e:
             await ctx.send(f"Error al intentar buscar la canción: {e}")
-    
+            return None
+            
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola"""
         if self.song_queue:
