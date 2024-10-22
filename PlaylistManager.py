@@ -12,8 +12,8 @@ class PlaylistManager(commands.Cog):
 
         # Configura las credenciales de Spotify
         self.spotify = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-            client_id = os.getenv('client_id'),
-            client_secret = os.getenv('client_secret')
+            client_id = os.getenv("client_id"),
+            client_secret = os.getenv("client_secret")
         ))
 
     # Función para obtener canciones de una playlist de YouTube
