@@ -168,7 +168,7 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'quiet': True,
         }
-    
+
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"ytsearch:{search_query}", download=False)
@@ -177,7 +177,7 @@ class Music(commands.Cog):
                 else:
                     return None
         except Exception as e:
-            await ctx.send(f"Error al intentar buscar la canción: {e}")
+            print(f"Error al intentar buscar la canción: {e}")
             return None
 
     @commands.command(name='p')
