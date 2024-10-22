@@ -104,7 +104,7 @@ class Music(commands.Cog):
         elif "youtube.com" in search and "playlist" in search:
             await self.play_youtube_playlist(ctx, search)
         else:
-            await self.search_youtube_and_queue(ctx, search)
+            await self.search_youtube(ctx, search)
 
     async def play_spotify(self, ctx, playlist_url):
         """Reproduce una playlist de Spotify"""
@@ -119,7 +119,7 @@ class Music(commands.Cog):
 
             # Realizar búsqueda en YouTube
             search_query = f"{song_title} {artist_name}"
-            await self.search_youtube_and_queue(ctx, search_query)
+            await self.search_youtube(ctx, search_query)
 
         if self.voice_client and not self.voice_client.is_playing():
             first_song = self.song_queue[0]  # Primera canción en la cola
