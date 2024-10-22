@@ -446,6 +446,16 @@ async def search_youtube(self, ctx, search: str):
             await ctx.send("No estoy en un canal de voz.")
         await self.delete_user_message(ctx)
 
+    @commands.command(name='p')
+    async def play_short(self, ctx, *, search: str):
+        """Abreviación del comando play"""
+        await self.play(ctx, search)
+
+    @commands.command(name='q')
+    async def queue_short(self, ctx, *, search: str):
+        """Abreviación del comando queue"""
+        await self.queue(ctx, search)
+
     @tasks.loop(seconds=60)
     async def check_inactivity(self):
         """Verifica si el bot debe desconectarse por inactividad"""
