@@ -137,7 +137,7 @@ class Music(commands.Cog):
         if song_url and song_title:  # Si hay una canción específica para reproducir
             if self.voice_client:
                 source = discord.FFmpegPCMAudio(song_url)
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next_song(ctx)))
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next(ctx)))
                 await ctx.send(f"Reproduciendo: **{song_title}**")
         elif self.song_queue:  # Si hay canciones en la cola
             song = self.song_queue.pop(0)
@@ -146,7 +146,7 @@ class Music(commands.Cog):
     
             if self.voice_client:
                 source = discord.FFmpegPCMAudio(song_url)
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next_song(ctx)))
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next(ctx)))
                 await ctx.send(f"Reproduciendo: **{song_title}**")
         else:
             await ctx.send("No hay más canciones en la cola.")
