@@ -5,6 +5,7 @@ from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio
 import time
+import os
 
 class Music(commands.Cog):
     def __init__(self, bot):
@@ -19,7 +20,7 @@ class Music(commands.Cog):
         # Inicializa Spotipy
         client_id = os.getenv('client_id')
         client_secret = os.getenv('client_secret')
-        credentials = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+        credentials = SpotifyClientCredentials(client_id, client_secret)
         self.sp = spotipy.Spotify(client_credentials_manager=credentials)
 
     
