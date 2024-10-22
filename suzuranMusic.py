@@ -166,19 +166,19 @@ class Music(commands.Cog):
 
     async def _play_song(self, ctx):
     """Reproduce una canción desde la cola"""
-    if self.song_queue:
-        song = self.song_queue.pop(0)
-        song_url = song['url']
-        song_title = song['title']
-
-        if self.voice_client:
-            source = discord.FFmpegPCMAudio(song_url)
-            self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_song(ctx)))
-            await ctx.send(f"Reproduciendo: **{song_title}**")
+        if self.song_queue:
+            song = self.song_queue.pop(0)
+            song_url = song['url']
+            song_title = song['title']
+    
+            if self.voice_client:
+                source = discord.FFmpegPCMAudio(song_url)
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_song(ctx)))
+                await ctx.send(f"Reproduciendo: **{song_title}**")
+            else:
+                await ctx.send("No estoy conectado a un canal de voz.")
         else:
-            await ctx.send("No estoy conectado a un canal de voz.")
-    else:
-        await ctx.send("No hay más canciones en la cola.")
+            await ctx.send("No hay más canciones en la cola.")
         
     async def search_youtube(self, search_query):
         """Busca en YouTube y devuelve información de la canción."""
