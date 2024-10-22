@@ -109,7 +109,6 @@ class Music(commands.Cog):
         results = self.sp.playlist_tracks(playlist_id)
     
         songs_added = 0  # Contador de canciones
-        first_song_url = None  # URL de la primera canción
     
         # Obtener detalles de las canciones
         for idx, item in enumerate(results['items']):
@@ -120,25 +119,38 @@ class Music(commands.Cog):
             # Realizar búsqueda en YouTube
             search_query = f"{song_title} {artist_name}"
             song_info = await self.search_youtube(search_query)
-            
+    
             if song_info:
                 song_url = song_info['url']
                 self.song_queue.append({'url': song_url, 'title': song_title})
     
                 if idx == 0:  # Si es la primera canción
-                    first_song_url = song_url
-                
-                songs_added += 1  # Incrementar contador
+                    songs_added += 1  # Incrementar contador
+                    # Iniciar la reproducción de la primera canción
+                    await self._play_song(ctx, song_url, song_title)
     
         if songs_added > 0:
             await ctx.send(f"🎶 Se añadieron **{songs_added}** canciones a la cola.")
-            
-            # Iniciar la reproducción de la primera canción
-            if first_song_url and self.voice_client and not self.voice_client.is_playing():
-                source = discord.FFmpegPCMAudio(first_song_url)
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_song(ctx)))
-                await ctx.send(f"Reproduciendo: **{results['items'][0]['track']['name']}**")
+
+    async def _play_song(self, ctx, song_url=None, song_title=None):
+        """Reproduce una canción desde la cola o una específica."""
+        if song_url and song_title:  # Si hay una canción específica para reproducir
+            if self.voice_client:
+                source = discord.FFmpegPCMAudio(song_url)
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next_song(ctx)))
+                await ctx.send(f"Reproduciendo: **{song_title}**")
+        elif self.song_queue:  # Si hay canciones en la cola
+            song = self.song_queue.pop(0)
+            song_url = song['url']
+            song_title = song['title']
     
+            if self.voice_client:
+                source = discord.FFmpegPCMAudio(song_url)
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next_song(ctx)))
+                await ctx.send(f"Reproduciendo: **{song_title}**")
+        else:
+            await ctx.send("No hay más canciones en la cola.")
+            
     async def search_youtube(self, search_query):
         """Busca en YouTube y devuelve información de la canción."""
         ydl_opts = {
@@ -157,21 +169,6 @@ class Music(commands.Cog):
             await ctx.send(f"Error al intentar buscar la canción: {e}")
             return None
             
-    async def _play_song(self, ctx):
-        """Reproduce una canción desde la cola"""
-        if self.song_queue:
-            song = self.song_queue.pop(0)
-            song_url = song['url']
-            song_title = song['title']
-    
-            if self.voice_client:
-                source = discord.FFmpegPCMAudio(song_url)
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_song(ctx)))
-                await ctx.send(f"Reproduciendo: **{song_title}**")
-            else:
-                await ctx.send("No estoy conectado a un canal de voz.")
-        else:
-            await ctx.send("No hay más canciones en la cola.")
         async def play_next(self, ctx):
             """Reproduce la siguiente canción en la cola"""
             if self.song_queue:
