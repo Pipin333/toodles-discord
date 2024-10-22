@@ -197,14 +197,14 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error al intentar buscar la canción: {e}")
             return None
-            
-        async def _play_next_song(self, ctx):
-            """Reproduce la siguiente canción en la cola"""
-            if self.song_queue:
-                await self._play_song(ctx)
-            else:
-                self.current_song = None
-                await ctx.send("No hay más canciones en la cola.")
+        
+    async def _play_next_song(self, ctx):
+        """Reproduce la siguiente canción en la cola"""
+        if self.song_queue:
+            await self._play_song(ctx)
+        else:
+            self.current_song = None
+            await ctx.send("No hay más canciones en la cola.")
 
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
@@ -439,7 +439,7 @@ class Music(commands.Cog):
         await self.delete_user_message(ctx)
 
     @commands.command()
-    async def leave(self, ctx):
+        async def leave(self, ctx):
         """Desconecta al bot del canal de voz"""
         if self.voice_client:
             await self.voice_client.disconnect()
