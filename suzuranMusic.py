@@ -3,6 +3,8 @@ from discord.ext import commands
 import yt_dlp as youtube_dl
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
+import os
+import asyncio
 
 class Music(commands.Cog):
     def __init__(self, bot):
@@ -10,23 +12,15 @@ class Music(commands.Cog):
         self.voice_client = None
         self.song_queue = []
         self.current_song = None
-        self.sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials( client_id = os.getenv('client_id'), client_secret = os.getenv('client_secret') )
+        self.sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(
+            client_id=os.getenv('client_id'),
+            client_secret=os.getenv('client_secret')
+        ))
 
     def format_duration(self, duration):
         """Convierte la duración de la canción de segundos a minutos:segundos"""
         minutes, seconds = divmod(duration, 60)
         return f"{minutes}:{seconds:02d}"
-
-    @commands.command()
-    async def delete_test(self, ctx):
-        """Test if the bot can delete a message"""
-        try:
-            await ctx.message.delete()
-            await ctx.send("Mensaje eliminado.")
-        except discord.Forbidden:
-            await ctx.send("No tengo permisos para borrar mensajes.")
-        except discord.HTTPException as e:
-            await ctx.send(f"Error al intentar eliminar el mensaje: {e}")
 
     @commands.command()
     async def help(self, ctx):
@@ -51,9 +45,19 @@ class Music(commands.Cog):
         await ctx.send(help_message)
 
     @commands.command()
+    async def delete_test(self, ctx):
+        """Test if the bot can delete a message"""
+        try:
+            await ctx.message.delete()
+            await ctx.send("Mensaje eliminado.")
+        except discord.Forbidden:
+            await ctx.send("No tengo permisos para borrar mensajes.")
+        except discord.HTTPException as e:
+            await ctx.send(f"Error al intentar eliminar el mensaje: {e}")
+
+    @commands.command()
     async def join(self, ctx):
         """Bot joins the voice channel"""
-        
         if ctx.voice_client:
             await ctx.send("Ya estoy en un canal de voz.")
         else:
@@ -72,80 +76,79 @@ class Music(commands.Cog):
             await ctx.send(f"Error al borrar el mensaje: {e}")
 
     async def play_playlist(self, ctx, playlist_url: str):
-            """Reproduce una lista de reproducción de YouTube o Spotify."""
-            if 'spotify.com' in playlist_url:
-                await self._play_spotify_playlist(ctx, playlist_url)
-            else:
-                await self._play_youtube_playlist(ctx, playlist_url)
+        """Reproduce una lista de reproducción de YouTube o Spotify."""
+        if 'spotify.com' in playlist_url:
+            await self._play_spotify_playlist(ctx, playlist_url)
+        else:
+            await self._play_youtube_playlist(ctx, playlist_url)
 
     async def _play_spotify_playlist(self, ctx, playlist_url):
-    """Maneja la reproducción de playlists de Spotify, obteniendo solo los nombres de las canciones."""
-    playlist_id = playlist_url.split("/")[-1].split("?")[0]
-    
-    try:
-        results = self.sp.playlist_tracks(playlist_id)
-        for item in results['items']:
-            track = item['track']
-            song_title = track['name']
-
-            # Usar youtube_dl para buscar la canción en YouTube
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'noplaylist': True,
-            }
-
-            try:
-                with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(song_title, download=False)
-                    song_url = info['url']
-                    song_duration = info.get('duration', 0)
-
-                    # Agregar la canción a la cola
-                    self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
-                    await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
-
-            except Exception as e:
-                await ctx.send(f"Error al buscar la canción en YouTube: {e}")
-                print(f"Error al buscar la canción en YouTube: {e}")
-
-        # Reproducir la primera canción si no se está reproduciendo
-        if not self.voice_client.is_playing() and not self.current_song:
-            await self._play_song(ctx)
-
-    except Exception as e:
-        await ctx.send(f"Error al intentar reproducir la playlist de Spotify: {e}")
-        print(f"Error al intentar reproducir la playlist de Spotify: {e}")
+        """Maneja la reproducción de playlists de Spotify, obteniendo solo los nombres de las canciones."""
+        playlist_id = playlist_url.split("/")[-1].split("?")[0]
         
+        try:
+            results = self.sp.playlist_tracks(playlist_id)
+            for item in results['items']:
+                track = item['track']
+                song_title = track['name']
+
+                # Usar youtube_dl para buscar la canción en YouTube
+                ydl_opts = {
+                    'format': 'bestaudio/best',
+                    'noplaylist': True,
+                }
+
+                try:
+                    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(song_title, download=False)
+                        song_url = info['url']
+                        song_duration = info.get('duration', 0)
+
+                        # Agregar la canción a la cola
+                        self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
+                        await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
+
+                except Exception as e:
+                    await ctx.send(f"Error al buscar la canción en YouTube: {e}")
+                    print(f"Error al buscar la canción en YouTube: {e}")
+
+            # Reproducir la primera canción si no se está reproduciendo
+            if not self.voice_client.is_playing() and not self.current_song:
+                await self._play_song(ctx)
+
+        except Exception as e:
+            await ctx.send(f"Error al intentar reproducir la playlist de Spotify: {e}")
+            print(f"Error al intentar reproducir la playlist de Spotify: {e}")
+
     async def _play_youtube_playlist(self, ctx, playlist_url):
-            """Maneja la reproducción de playlists de YouTube."""
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'noplaylist': True,
-            }
+        """Maneja la reproducción de playlists de YouTube."""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'noplaylist': True,
+        }
 
-            try:
-                with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(playlist_url, download=False)
-                    
-                    if 'entries' in info:
-                        for entry in info['entries']:
-                            song_url = entry['url']
-                            song_title = entry['title']
-                            song_duration = entry.get('duration', 0)
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(playlist_url, download=False)
+                
+                if 'entries' in info:
+                    for entry in info['entries']:
+                        song_url = entry['url']
+                        song_title = entry['title']
+                        song_duration = entry.get('duration', 0)
 
-                            # Agregar cada canción a la cola
-                            self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
-                            await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
+                        # Agregar cada canción a la cola
+                        self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
+                        await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
 
-                        # Reproducir la primera canción si no se está reproduciendo
-                        if not self.voice_client.is_playing() and not self.current_song:
-                            await self._play_song(ctx)
-                    else:
-                        await ctx.send("No se encontró la lista de reproducción.")
-            except Exception as e:
-                await ctx.send(f"Error al intentar reproducir la lista de reproducción: {e}")
-                print(f"Error al intentar reproducir la lista de reproducción: {e}")
-
+                    # Reproducir la primera canción si no se está reproduciendo
+                    if not self.voice_client.is_playing() and not self.current_song:
+                        await self._play_song(ctx)
+                else:
+                    await ctx.send("No se encontró la lista de reproducción.")
+        except Exception as e:
+            await ctx.send(f"Error al intentar reproducir la lista de reproducción: {e}")
+            print(f"Error al intentar reproducir la lista de reproducción: {e}")
 
     @commands.command()
     async def play(self, ctx, *, search: str):
@@ -188,7 +191,6 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error al buscar la canción: {e}")
             print(f"Error al buscar la canción: {e}")
-
     @commands.command()
     async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
