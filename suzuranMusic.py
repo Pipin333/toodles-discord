@@ -10,8 +10,6 @@ class Music(commands.Cog):
         self.voice_client = None
         self.song_queue = []
         self.current_song = None
-        
-        # Inicializar Spotipy
         self.sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials( client_id = os.getenv('client_id'), client_secret = os.getenv('client_secret') )
 
     def format_duration(self, duration):
