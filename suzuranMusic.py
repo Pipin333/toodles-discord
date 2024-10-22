@@ -439,7 +439,7 @@ class Music(commands.Cog):
         await self.delete_user_message(ctx)
 
     @commands.command()
-        async def leave(self, ctx):
+    async def leave(self, ctx):
         """Desconecta al bot del canal de voz"""
         if self.voice_client:
             await self.voice_client.disconnect()
