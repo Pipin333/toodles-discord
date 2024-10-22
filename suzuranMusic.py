@@ -1,4 +1,5 @@
 import discord
+import random
 from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio
