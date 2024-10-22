@@ -22,7 +22,7 @@ class Music(commands.Cog):
 
     
 
-	async def delete_user_message(self, ctx):
+    async def delete_user_message(self, ctx):
         await asyncio.sleep(0.1)
         try:
             await ctx.message.delete()
@@ -84,113 +84,113 @@ class Music(commands.Cog):
         await self.delete_user_message(ctx)
                 
 
-	@commands.command()
-	async def play(self, ctx, *, search: str):
-		"""Agrega una canción o lista de reproducción a la cola y empieza la reproducción si no se está reproduciendo ya"""
-		if not ctx.author.voice:
-			await ctx.send("Necesitas estar en un canal de voz para reproducir música.")
-			return
-	
-		if not ctx.voice_client:
-			channel = ctx.author.voice.channel
-			self.voice_client = await channel.connect()
-			await ctx.send("🎶 Conectando al canal de voz...")
-	
-		# Verifica si el enlace es de Spotify o YouTube
-		if "spotify.com" in search:
-			# Procesar enlace de Spotify
-			await self.play_spotify(ctx, search)
-		elif "youtube.com" in search or "youtu.be" in search:
-			# Procesar enlace de YouTube
-			await self.play_youtube(ctx, search)
-		else:
-			# Buscar información de la canción por nombre
-			await self.search_youtube(ctx, search)
-	
-	async def play_spotify(self, ctx, link: str):
-		"""Extrae canciones de una lista de reproducción de Spotify y las pasa a search_youtube"""
-		playlist_id = link.split('/')[-1].split('?')[0]  # Extrae el ID de la lista de reproducción
-	
-		try:
-			results = self.sp.playlist_tracks(playlist_id)
-			song_titles = []
-	
-			for item in results['items']:
-				track = item['track']
-				song_title = track['name']
-				song_titles.append(song_title)
-	
-			await ctx.send(f"🎶 Canciones añadidas de la lista de reproducción: {link}")
-	
-			# Llama al comando search_youtube para buscar las canciones en YouTube
-			for title in song_titles:
-				await self.search_youtube(ctx, title)
-	
-		except Exception as e:
-			await ctx.send(f"Error al intentar reproducir la lista de reproducción: {e}")
-			print(f"Error al intentar reproducir la lista de reproducción: {e}")
-	
-	async def play_youtube(self, ctx, link: str):
-		"""Reproduce una canción de YouTube"""
-		ydl_opts = {
-			'format': 'bestaudio/best',
-			'postprocessors': [{
-				'key': 'FFmpegExtractAudio',
-				'preferredcodec': 'mp3',
-				'preferredquality': '320',
-			}],
-		}
-	
-		try:
-			with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-				info = ydl.extract_info(link, download=False)
-				song_url = info['url']
-				song_title = info['title']
-				song_duration = info.get('duration', 0)
-	
-				self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
-	
-				await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
-	
-				if not self.voice_client.is_playing() and not self.current_song:
-					await self._play_song(ctx)
-		except Exception as e:
-			await ctx.send(f"Error al intentar reproducir la canción: {e}")
-			print(f"Error al intentar reproducir la canción: {e}")
-	
-	async def search_youtube(self, ctx, search: str):
-		"""Buscar información de la canción usando el nombre"""
-		ydl_opts = {
-			'format': 'bestaudio/best',
-			'noplaylist': True,
-			'postprocessors': [{
-				'key': 'FFmpegExtractAudio',
-				'preferredcodec': 'mp3',
-				'preferredquality': '320',
-			}],
-		}
-	
-		try:
-			with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-				info = ydl.extract_info(f"ytsearch:{search}", download=False)
-				if info.get('entries'):
-					song_info = info['entries'][0]
-					song_url = song_info['url']
-					song_title = song_info['title']
-					song_duration = song_info.get('duration', 0)
-	
-					self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
-	
-					await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
-	
-					if not self.voice_client.is_playing() and not self.current_song:
-						await self._play_song(ctx)
-				else:
-					await ctx.send("No se encontró la canción.")
-		except Exception as e:
-			await ctx.send(f"Error al intentar reproducir la canción: {e}")
-			print(f"Error al intentar reproducir la canción: {e}")
-			
+    @commands.command()
+    async def play(self, ctx, *, search: str):
+        """Agrega una canción o lista de reproducción a la cola y empieza la reproducción si no se está reproduciendo ya"""
+        if not ctx.author.voice:
+            await ctx.send("Necesitas estar en un canal de voz para reproducir música.")
+            return
+
+        if not ctx.voice_client:
+            channel = ctx.author.voice.channel
+            self.voice_client = await channel.connect()
+            await ctx.send("🎶 Conectando al canal de voz...")
+
+        # Verifica si el enlace es de Spotify o YouTube
+        if "spotify.com" in search:
+            # Procesar enlace de Spotify
+            await self.play_spotify(ctx, search)
+        elif "youtube.com" in search or "youtu.be" in search:
+            # Procesar enlace de YouTube
+            await self.play_youtube(ctx, search)
+        else:
+            # Buscar información de la canción por nombre
+            await self.search_youtube(ctx, search)
+
+    async def play_spotify(self, ctx, link: str):
+        """Extrae canciones de una lista de reproducción de Spotify y las pasa a search_youtube"""
+        playlist_id = link.split('/')[-1].split('?')[0]  # Extrae el ID de la lista de reproducción
+
+        try:
+            results = self.sp.playlist_tracks(playlist_id)
+            song_titles = []
+
+            for item in results['items']:
+                track = item['track']
+                song_title = track['name']
+                song_titles.append(song_title)
+
+            await ctx.send(f"🎶 Canciones añadidas de la lista de reproducción: {link}")
+
+            # Llama al comando search_youtube para buscar las canciones en YouTube
+            for title in song_titles:
+                await self.search_youtube(ctx, title)
+
+        except Exception as e:
+            await ctx.send(f"Error al intentar reproducir la lista de reproducción: {e}")
+            print(f"Error al intentar reproducir la lista de reproducción: {e}")
+
+    async def play_youtube(self, ctx, link: str):
+        """Reproduce una canción de YouTube"""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '320',
+            }],
+        }
+
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(link, download=False)
+                song_url = info['url']
+                song_title = info['title']
+                song_duration = info.get('duration', 0)
+
+                self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
+
+                await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
+
+                if not self.voice_client.is_playing() and not self.current_song:
+                    await self._play_song(ctx)
+        except Exception as e:
+            await ctx.send(f"Error al intentar reproducir la canción: {e}")
+            print(f"Error al intentar reproducir la canción: {e}")
+
+    async def search_youtube(self, ctx, search: str):
+        """Buscar información de la canción usando el nombre"""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'noplaylist': True,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '320',
+            }],
+        }
+
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"ytsearch:{search}", download=False)
+                if info.get('entries'):
+                    song_info = info['entries'][0]
+                    song_url = song_info['url']
+                    song_title = song_info['title']
+                    song_duration = song_info.get('duration', 0)
+
+                    self.song_queue.append({'url': song_url, 'title': song_title, 'duration': song_duration})
+
+                    await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
+
+                    if not self.voice_client.is_playing() and not self.current_song:
+                        await self._play_song(ctx)
+                else:
+                    await ctx.send("No se encontró la canción.")
+        except Exception as e:
+            await ctx.send(f"Error al intentar reproducir la canción: {e}")
+            print(f"Error al intentar reproducir la canción: {e}")
+            
     @commands.command()
     async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
