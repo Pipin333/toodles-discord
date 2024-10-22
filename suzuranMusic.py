@@ -468,5 +468,5 @@ class Music(commands.Cog):
                 print("Desconectado por inactividad.")
 
 async def setup(bot):
-   await bot.add_cog(Music(bot))
+   await bot.add_cog(Music(bot)) 
 
