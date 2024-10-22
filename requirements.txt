@@ -3,3 +3,4 @@ yt_dlp
 aiohttp
 pynacl
 asyncio
+spotipy
