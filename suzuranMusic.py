@@ -120,11 +120,13 @@ class Music(commands.Cog):
                     await ctx.send(f"🎶 Canción añadida a la cola: **{song_title}**")
 
                 # Si no hay ninguna canción reproduciéndose, empieza la reproducción
+                if not self.voice_client or not self.voice_client.is_connected():
+                    channel = ctx.author.voice.channel
+                    self.voice_client = await channel.connect()
+
                 if not self.voice_client.is_playing() and not self.current_song:
-                    if self.voice_client:  # Verifica que voice_client no sea None
-                        await self._play_song(ctx)
-                    else:
-                        await ctx.send("No se pudo conectar al canal de voz.")
+                    await self._play_song(ctx)
+                    
         except Exception as e:
             await ctx.send(f"Error al intentar reproducir la canción: {e}")
             print(f"Error al intentar reproducir la canción: {e}")
@@ -151,6 +153,14 @@ class Music(commands.Cog):
                 await ctx.send("No estoy conectado a un canal de voz.")
         else:
             self.current_song = None
+
+    async def play_next(self, ctx):
+        """Reproduce la siguiente canción en la cola"""
+        if self.song_queue:
+            await self._play_song(ctx)
+        else:
+            self.current_song = None
+            await ctx.send("No hay más canciones en la cola.")
 
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
@@ -223,14 +233,6 @@ class Music(commands.Cog):
             await ctx.send(f"Error durante la búsqueda: {e}")
             print(f"Error durante la búsqueda: {e}")
         await self.delete_user_message(ctx)
-
-    async def play_next(self, ctx):
-        """Reproduce la siguiente canción en la cola"""
-        if self.song_queue:
-            await self._play_song(ctx)
-        else:
-            self.current_song = None
-            await ctx.send("No hay más canciones en la cola.")
 
     @commands.command()
     async def np(self, ctx):
