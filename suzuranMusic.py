@@ -258,18 +258,34 @@ class Music(commands.Cog):
             await ctx.send("La cola de canciones está vacía.")
         await self.delete_user_message(ctx)
 
-    @commands.command()
-    async def playlist(self, ctx, playlist_link: str):
-        """Agrega toda la lista de reproducción a la cola."""
-        # Extrae las canciones de la lista de reproducción
-        songs = await self.extract_songs_from_playlist(playlist_link)
-        if songs:
-            self.song_queue.extend(songs)
-            await ctx.send(f"🎶 Se añadieron {len(songs)} canciones a la cola.")
-            if not self.voice_client.is_playing() and not self.current_song:
-                await self._play_song(ctx)
-        else:
-            await ctx.send("No se pudieron encontrar canciones en la lista de reproducción.")
+@commands.command()
+async def playlist(self, ctx, playlist_link: str):
+    """Agrega toda la lista de reproducción a la cola y reproduce la música."""
+    
+    # Extrae las canciones de la lista de reproducción
+    songs = await self.extract_songs_from_playlist(playlist_link)
+    
+    if songs:
+        # Asegúrate de que la cola de canciones exista
+        if not hasattr(self, 'song_queue'):
+            self.song_queue = []
+        
+        self.song_queue.extend(songs)
+        await ctx.send(f"🎶 Se añadieron {len(songs)} canciones a la cola.")
+
+        # Unirse al canal de voz
+        if ctx.author.voice:
+            channel = ctx.author.voice.channel
+            if self.voice_client is None:
+                self.voice_client = await channel.connect()
+            else:
+                await self.voice_client.move_to(channel)
+        
+        # Reproducir la primera canción si no está reproduciendo
+        if not self.voice_client.is_playing() and not self.current_song:
+            await self._play_song(ctx)
+    else:
+        await ctx.send("No se pudieron encontrar canciones en la lista de reproducción.")
 
     async def extract_songs_from_playlist(self, playlist_link):
         """Extrae las canciones de la lista de reproducción y las devuelve como una lista de diccionarios."""
