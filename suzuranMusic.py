@@ -6,7 +6,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import os
 import asyncio
 
-class Music(commands.Cog):
+class suzuranMusic(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.voice_client = None
@@ -191,6 +191,7 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error al buscar la canción: {e}")
             print(f"Error al buscar la canción: {e}")
+            
     @commands.command()
     async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
@@ -447,6 +448,6 @@ class Music(commands.Cog):
                 print("Desconectado por inactividad.")
 
 async def setup(bot):
-   await bot.add_cog(Music(bot))
+   await bot.add_cog(suzuranMusic(bot))
 
 
