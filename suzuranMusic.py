@@ -47,8 +47,10 @@ class Music(commands.Cog):
             "`td?help` - Muestra este mensaje.\n"
             "`td?join` - Conecta el bot al canal de voz.\n"
             "`td?play <título>` - Agrega una canción a la cola y empieza a reproducir si no hay ninguna canción en curso.\n"
+            "`td?search <consulta>` - Permite buscar una cancion y seleccionarla dentro de una lista de opciones.\n"
             "`td?np` - Muestra la canción actual y el tiempo de reproducción.\n"
             "`td?queue` - Muestra la cola actual de canciones.\n"
+            "`td?playlist <enlace>` - Agrega una lista de reproducción a la cola.\n"
             "`td?qAdd [posición] <título>` - Agrega una canción a una posición específica en la cola.\n"
             "`td?qMove <índice actual> <nuevo índice>` - Mueve una canción a una nueva posición en la cola.\n"
             "`td?qRemove <índice>` - Elimina una canción de la cola por su índice.\n"
@@ -257,7 +259,48 @@ class Music(commands.Cog):
         await self.delete_user_message(ctx)
 
     @commands.command()
-    async def qAdd(self, ctx, position: int, *, title: str):
+    async def playlist(self, ctx, playlist_link: str):
+        """Agrega toda la lista de reproducción a la cola."""
+        # Extrae las canciones de la lista de reproducción
+        songs = await self.extract_songs_from_playlist(playlist_link)
+        if songs:
+            self.song_queue.extend(songs)
+            await ctx.send(f"🎶 Se añadieron {len(songs)} canciones a la cola.")
+            if not self.voice_client.is_playing() and not self.current_song:
+                await self._play_song(ctx)
+        else:
+            await ctx.send("No se pudieron encontrar canciones en la lista de reproducción.")
+
+    async def extract_songs_from_playlist(self, playlist_link):
+        """Extrae las canciones de la lista de reproducción y las devuelve como una lista de diccionarios."""
+        songs = []
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'noplaylist': False,  # Permitir listas de reproducción
+        }
+
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(playlist_link, download=False)
+                if 'entries' in info:
+                    for entry in info['entries']:
+                        songs.append({
+                            'url': entry['url'],
+                            'title': entry['title'],
+                            'duration': entry.get('duration', 0)
+                        })
+        except Exception as e:
+            print(f"Error al extraer canciones de la lista de reproducción: {e}")
+
+        return songs
+
+    async def delete_user_message(self, ctx):
+        # Aquí va la lógica para eliminar el mensaje del usuario si es necesario.
+        pass
+
+    @commands.command()
+    async def qadd(self, ctx, position: int, *, title: str):
         """Agrega una canción a una posición específica en la cola"""
         if position < 1:
             await ctx.send("La posición debe ser mayor que 0.")
@@ -295,7 +338,7 @@ class Music(commands.Cog):
         await self.delete_user_message(ctx)
 
     @commands.command()
-    async def qMove(self, ctx, current_index: int, new_index: int):
+    async def move(self, ctx, current_index: int, new_index: int):
         """Mueve una canción a una nueva posición en la cola"""
         if current_index < 1 or new_index < 1:
             await ctx.send("Los índices deben ser mayores que 0.")
@@ -311,7 +354,7 @@ class Music(commands.Cog):
         await self.delete_user_message(ctx)
 
     @commands.command()
-    async def qRemove(self, ctx, index: int):
+    async def remove(self, ctx, index: int):
         """Elimina una canción de la cola por su índice"""
         if index < 1 or index > len(self.song_queue):
             await ctx.send("Índice fuera de rango.")
@@ -322,7 +365,7 @@ class Music(commands.Cog):
         await self.delete_user_message(ctx)
 
     @commands.command()
-    async def qClear(self, ctx):
+    async def qclear(self, ctx):
         """Limpia la cola de canciones"""
         self.song_queue.clear()
         await ctx.send("🎵 Cola de canciones limpia.")
