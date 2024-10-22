@@ -109,10 +109,9 @@ async def desFP(ctx):
 async def main():
     try:
         await bot.load_extension('suzuranMusic')
-        # await bot.load_extension('SteamMarket')
-        print("Cogs cargados correctamente.")
+        print("Cog 'suzuranMusic' cargado correctamente.")
     except Exception as e:
-        print(f"Error al cargar los cogs: {e}")
+        print(f"Error al cargar el cog de música: {e}")
 
     token = os.getenv("token_priv")
 
