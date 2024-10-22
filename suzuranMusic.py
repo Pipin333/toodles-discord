@@ -1,6 +1,6 @@
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
+
 import discord
+import requests
 from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio
@@ -16,14 +16,56 @@ class Music(commands.Cog):
         self.play_next_song = asyncio.Event()  # Evento para gestionar la reproducción de la siguiente canción
         self.check_inactivity.start()  # Iniciar la tarea de verificación de inactividad
         self.start_time = None  # Variable para registrar el inicio de la canción
+        self.spotify_token = self.get_spotify_token()
 
         # Inicializa Spotipy
         client_id = os.getenv('client_id')
         client_secret = os.getenv('client_secret')
-        credentials = SpotifyClientCredentials(client_id, client_secret)
-        self.sp = spotipy.Spotify(client_credentials_manager=credentials)
+        credentials = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+        self.sp = spotipy.Spotify(auth_manager=credentials)
 
-    
+    def get_spotify_token(self):
+        client_id = os.getenv('client_id')
+        client_secret = os.getenv('client_secret')
+        auth_url = 'https://accounts.spotify.com/api/token'
+        auth_response = requests.post(auth_url, {
+            'grant_type': 'client_credentials',
+            'client_id': client_id,
+            'client_secret': client_secret,
+        })
+        auth_response_data = auth_response.json()
+        return auth_response_data['access_token']
+
+    def search_spotify_playlist(self, playlist_id):
+        search_url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
+        headers = {
+            'Authorization': f'Bearer {self.spotify_token}'
+        }
+        response = requests.get(search_url, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Error en la solicitud a Spotify: {response.status_code}")
+
+    async def play_spotify(self, ctx, link: str):
+        playlist_id = link.split('/')[-1].split('?')[0]
+        try:
+            results = self.search_spotify_playlist(playlist_id)
+            song_titles = []
+
+            for item in results['items']:
+                track = item['track']
+                song_title = track['name']
+                song_titles.append(song_title)
+
+            await ctx.send(f"🎶 Canciones añadidas de la lista de reproducción: {link}")
+
+            for title in song_titles:
+                await self.search_youtube(ctx, title)
+
+        except Exception as e:
+            await ctx.send(f"Error al intentar reproducir la lista de reproducción: {e}")
+            print(f"Error: {e}")
 
     async def delete_user_message(self, ctx):
         await asyncio.sleep(0.1)
