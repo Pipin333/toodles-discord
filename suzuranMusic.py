@@ -131,9 +131,15 @@ class Music(commands.Cog):
     async def play_youtube_playlist(self, ctx, playlist_url: str):
         """Reproduce canciones de una playlist de YouTube"""
         ydl_opts = {
-            'extract_flat': True,  # No descargamos el video, solo la información
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'type': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '320',
+            }],
             'quiet': True,
-        }
+            'noplaylist': True,
+}
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 playlist_info = ydl.extract_info(playlist_url, download=False)
