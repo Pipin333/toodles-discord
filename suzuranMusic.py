@@ -19,7 +19,7 @@ class Music(commands.Cog):
         self.song_queue = []  # Lista para almacenar las canciones en cola
         self.current_song = None  # La canción que se está reproduciendo actualmente
         self.voice_client = None  # Conexión de voz del bot
-        self.play_next_song = asyncio.Event()  # Evento para gestionar la reproducción de la siguiente canción
+        self.play_next = asyncio.Event()  # Evento para gestionar la reproducción de la siguiente canción
         self.check_inactivity.start()  # Iniciar la tarea de verificación de inactividad
         self.start_time = None  # Variable para registrar el inicio de la canción
         
@@ -187,6 +187,9 @@ class Music(commands.Cog):
         """Reproduce la siguiente canción en la cola"""
         if self.song_queue:
             await self._play_song(ctx)
+        else:
+            await ctx.send("No hay más canciones en la cola.")
+
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
         """Abreviación del comando play"""
@@ -382,7 +385,7 @@ class Music(commands.Cog):
         """Salta la canción actual"""
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.stop()
-            await self._play_next_song(ctx)
+            await self.play_next(ctx)
         else:
             await ctx.send("No se está reproduciendo ninguna canción.")
         await self.delete_user_message(ctx)
