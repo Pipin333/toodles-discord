@@ -113,30 +113,49 @@ class Music(commands.Cog):
 
 
     async def load_spotify_playlist(self, ctx, playlist_url: str):
-        """Carga la playlist de Spotify en un hilo separado."""
         await ctx.send("Cargando playlist de Spotify...")
-        future = self.bot.loop.run_in_executor(self.executor, self.play_spotify_playlist, ctx, playlist_url)
-        await future  # Esperar a que se complete la carga
+        playlist_id = playlist_url.split("/")[-1].split("?")[0]
+
+        try:
+            results = self.sp.playlist_tracks(playlist_id)
+            tracks = results['items']
+
+            # Utilizando gather para cargar canciones en paralelo
+            tasks = [
+                self.add_song_to_queue(ctx, track['track'])
+                for track in tracks
+            ]
+            await asyncio.gather(*tasks)
+
+            await ctx.send(f"🎶 Se añadieron {len(tracks)} canciones de Spotify a la cola.")
+        except Exception as e:
+            await ctx.send(f"Error al procesar la playlist de Spotify: {e}")
+
+    async def add_song_to_queue(self, ctx, track):
+        song_name = track['name']
+        artist_name = track['artists'][0]['name']
+        search_query = f"{song_name} {artist_name}"
         
-    async def add_songs_to_queue(self, ctx, playlist):
-        """Añade canciones de una playlist a la cola en lotes."""
-        max_songs_to_add = 5
-        songs = playlist.get('tracks', [])
-        total_batches = (len(songs) + max_songs_to_add - 1) // max_songs_to_add
+        await self.search_and_queue_youtube(ctx, search_query)
+        async def add_songs_to_queue(self, ctx, playlist):
+            """Añade canciones de una playlist a la cola en lotes."""
+            max_songs_to_add = 5
+            songs = playlist.get('tracks', [])
+            total_batches = (len(songs) + max_songs_to_add - 1) // max_songs_to_add
 
-        for i in range(0, len(songs), max_songs_to_add):
-            batch = songs[i:i + max_songs_to_add]
-            for song in batch:
-                self.song_queue.append({
-                    'title': song['title'],
-                    'url': song['url'],
-                    'duration': song.get('duration', 0)
-                })
-            
-            current_batch_number = (i // max_songs_to_add) + 1
-            await ctx.send(f"Añadidas {len(batch)} canciones a la playlist (lote {current_batch_number} de {total_batches}).")
+            for i in range(0, len(songs), max_songs_to_add):
+                batch = songs[i:i + max_songs_to_add]
+                for song in batch:
+                    self.song_queue.append({
+                        'title': song['title'],
+                        'url': song['url'],
+                        'duration': song.get('duration', 0)
+                    })
+                
+                current_batch_number = (i // max_songs_to_add) + 1
+                await ctx.send(f"Añadidas {len(batch)} canciones a la playlist (lote {current_batch_number} de {total_batches}).")
 
-        await ctx.send("Todos los lotes han sido añadidos.")
+            await ctx.send("Todos los lotes han sido añadidos.")
 
     async def play_spotify_playlist(self, ctx, playlist_url: str):
         """Reproduce canciones de una playlist de Spotify."""
