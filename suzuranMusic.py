@@ -96,6 +96,7 @@ class Music(commands.Cog):
             else:
                 await ctx.send("Debes estar en un canal de voz para usar este comando.")
                 return
+        await self.delete_user_message(ctx)            
 
         # Verificar si el bot está conectado
         if not ctx.voice_client.is_connected():
@@ -185,6 +186,8 @@ class Music(commands.Cog):
             song = self.song_queue.pop(0)
             song_url = song['url']
             song_title = song['title']
+            self.current_song = song  # Actualiza la canción actual
+            self.start_time = time.time()  # Establece el tiempo de inicio
 
             # Asegurarse de estar conectado y reproducir
             if self.voice_client and self.voice_client.is_connected():
@@ -195,6 +198,7 @@ class Music(commands.Cog):
                 await ctx.send("No estoy conectado a un canal de voz.")
         else:
             await ctx.send("No hay más canciones en la cola.")
+
             
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola"""
@@ -203,10 +207,12 @@ class Music(commands.Cog):
         else:
             await ctx.send("No hay más canciones en la cola.")
 
+
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
         """Abreviación del comando play"""
         await self.play(ctx, search)
+
     
     @commands.command()
     async def search(self, ctx, *, query: str):
@@ -267,6 +273,7 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error durante la búsqueda: {e}")
             print(f"Error durante la búsqueda: {e}")
+            
         await self.delete_user_message(ctx)
 
     @commands.command()
@@ -285,6 +292,7 @@ class Music(commands.Cog):
             await ctx.send(f"🎶 Reproduciendo ahora: **{self.current_song['title']}** \nTiempo transcurrido: {formatted_elapsed_time} / {formatted_total_duration}")
         else:
             await ctx.send("No hay ninguna canción reproduciéndose en este momento.")
+        
         await self.delete_user_message(ctx)
 
     @commands.command()
