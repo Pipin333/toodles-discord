@@ -19,7 +19,7 @@ class Music(commands.Cog):
         self.song_queue = []  # Lista para almacenar las canciones en cola
         self.current_song = None  # La canción que se está reproduciendo actualmente
         self.voice_client = None  # Conexión de voz del bot
-        self._play_next = asyncio.Event()  # Evento para gestionar la reproducción de la siguiente canción
+        self.play_next = asyncio.Event()  # Evento para gestionar la reproducción de la siguiente canción
         self.check_inactivity.start()  # Iniciar la tarea de verificación de inactividad
         self.start_time = None  # Variable para registrar el inicio de la canción
         
@@ -187,13 +187,13 @@ class Music(commands.Cog):
             # Asegurarse de estar conectado y reproducir
             if self.voice_client and self.voice_client.is_connected():
                 source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next(ctx)))
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
             else:
                 await ctx.send("No estoy conectado a un canal de voz.")
         else:
             await ctx.send("No hay más canciones en la cola.")
 
-    async def _play_next(self, ctx):
+    async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola"""
         if self.song_queue:
             await self._play_song(ctx)
@@ -395,7 +395,7 @@ class Music(commands.Cog):
         """Salta la canción actual"""
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.stop()
-            await self._play_next(ctx)
+            await self.play_next(ctx)
         else:
             await ctx.send("No se está reproduciendo ninguna canción.")
         await self.delete_user_message(ctx)
