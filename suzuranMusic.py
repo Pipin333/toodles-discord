@@ -172,21 +172,27 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error al intentar añadir la canción: {e}")
 
-    async def queue_song(self, ctx, song_url: str, song_title: str):
-        """Añade una canción a la cola y la reproduce si no hay otras canciones"""
-        self.song_queue.append({'url': song_url, 'title': song_title})
+    async def queue_song(self, ctx, song_url: str, song_title: str, loaded=False):
+        """Añade una canción a la cola como "placeholder" o ya cargada."""
+        # Añadir canción como "placeholder" si no está cargada (sin URL)
+        self.song_queue.append({'title': song_title, 'url': song_url if loaded else None, 'loaded': loaded})
 
         if not self.voice_client or not self.voice_client.is_playing():
             await self._play_song(ctx)
-
+            
     async def _play_song(self, ctx):
-        """Reproduce una canción desde la cola"""
+        """Reproduce una canción desde la cola, cargando la URL si es necesario"""
         if self.song_queue:
             song = self.song_queue.pop(0)
+
+            # Si la canción no está cargada (URL es None), la cargamos ahora
+            if not song['loaded']:
+                song = await self.load_song_url(song['title'])
+
             song_url = song['url']
             song_title = song['title']
-            self.current_song = song  # Actualiza la canción actual
-            self.start_time = time.time()  # Establece el tiempo de inicio
+            self.current_song = song
+            self.start_time = time.time()
 
             if self.voice_client and self.voice_client.is_connected():
                 source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
@@ -197,12 +203,28 @@ class Music(commands.Cog):
         else:
             await ctx.send("No hay más canciones en la cola.")
 
-    async def play_next(self, ctx):
-        """Reproduce la siguiente canción en la cola"""
-        if self.song_queue:
-            await self._play_song(ctx)
-        else:
-            await ctx.send("No hay más canciones en la cola.")
+    async def load_song_url(self, song_title):
+        """Carga la URL de una canción usando YouTube"""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'noplaylist': True,
+        }
+
+        try:
+            info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{song_title}", download=False))
+            if info.get('entries'):
+                song_info = info['entries'][0]
+                song_url = song_info['url']
+                return {'title': song_title, 'url': song_url, 'loaded': True}
+        except Exception as e:
+            return {'title': song_title, 'url': None, 'loaded': False}
+        async def play_next(self, ctx):
+            """Reproduce la siguiente canción en la cola"""
+            if self.song_queue:
+                await self._play_song(ctx)
+            else:
+                await ctx.send("No hay más canciones en la cola.")
 
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
@@ -290,40 +312,23 @@ class Music(commands.Cog):
         
         await self.delete_user_message(ctx)
 
-    @commands.command()
-    async def queue(self, ctx):
-        """Muestra la cola de canciones"""
-        if self.song_queue:
-            max_length = 2000
-            queue_message = "**Cola de canciones:**\n"
-            current_message = ""
+@commands.command()
+async def queue(self, ctx):
+    """Muestra la cola de canciones"""
+    if self.song_queue:
+        queue_message = "**Cola de canciones:**\n"
+        for idx, song in enumerate(self.song_queue):
+            song_status = "Cargada" if song['loaded'] else "No cargada"
+            queue_message += f"{idx + 1}. **{song['title']}** ({song_status})\n"
+        await ctx.send(queue_message)
+    else:
+        await ctx.send("La cola de canciones está vacía.")
 
-            for idx, song in enumerate(self.song_queue):
-                formatted_duration = self.format_duration(song.get('duration', 0))
-                song_info = f"{idx + 1}. **{song['title']}** ({formatted_duration})\n"
-
-                if len(current_message) + len(song_info) > max_length:
-                    await ctx.send(current_message)
-                    current_message = song_info  # Comienza un nuevo mensaje
-                else:
-                    current_message += song_info
-
-            if current_message:  # Envía el último mensaje si hay contenido
-                await ctx.send(current_message)
-        else:
-            await ctx.send("La cola de canciones está vacía.")
-
-        await self.delete_user_message(ctx)
-
-    @commands.command()
-    async def shuffle(self, ctx):
-        """Revuelve la cola de canciones."""
-        if len(self.song_queue) > 1:
-            random.shuffle(self.song_queue)
-            await ctx.send("🔀 La cola de canciones ha sido revuelta.")
-        else:
-            await ctx.send("No hay suficientes canciones en la cola para revolver.")  
-        await self.delete_user_message(ctx)
+@commands.command()
+async def shuffle(self, ctx):
+    """Revuelve las canciones en la cola"""
+    random.shuffle(self.song_queue)
+    await ctx.send("La cola de canciones ha sido revuelta.")
         
     @commands.command(name='q')
     async def queue_short(self, ctx, *, search: str):
