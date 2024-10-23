@@ -157,15 +157,16 @@ class Music(commands.Cog):
 
     async def search_and_queue_youtube(self, ctx, search_query: str):
         """Realiza una búsqueda en YouTube y añade la canción a la cola"""
+        
         ydl_opts = {
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True,
+            'noplaylist': True,  # Evitar listas de reproducción
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '320',
+                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
+                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
             }],
         }
 
@@ -224,11 +225,11 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True,
+            'noplaylist': True,  # Evitar listas de reproducción
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '320',
+                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
+                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
             }],
         }
 
@@ -340,14 +341,13 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True,
+            'noplaylist': True,  # Evitar listas de reproducción
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '320',
+                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
+                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
             }],
         }
-        
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"ytsearch:{title}", download=False)
