@@ -132,14 +132,16 @@ class Music(commands.Cog):
         """Reproduce canciones de una playlist de YouTube"""
         ydl_opts = {
             'format': 'bestaudio/best',
+            'verbose': True,
+            'quiet': False,
+            'noplaylist': False,  # Evitar listas de reproducción
             'postprocessors': [{
-                'type': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '320',
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
+                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
             }],
-            'quiet': True,
-            'noplaylist': True,
-}
+        }
+        
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 playlist_info = ydl.extract_info(playlist_url, download=False)
@@ -157,12 +159,12 @@ class Music(commands.Cog):
 
     async def search_and_queue_youtube(self, ctx, search_query: str):
         """Realiza una búsqueda en YouTube y añade la canción a la cola"""
-        
+
         ydl_opts = {
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True,  # Evitar listas de reproducción
+            'noplaylist': False,  # Evitar listas de reproducción
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
@@ -225,7 +227,7 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True,  # Evitar listas de reproducción
+            'noplaylist': False,  # Evitar listas de reproducción
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
