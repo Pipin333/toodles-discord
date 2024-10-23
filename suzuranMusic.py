@@ -86,21 +86,26 @@ class Music(commands.Cog):
             else:
                 await ctx.send("No estás conectado a un canal de voz.")
         await self.delete_user_message(ctx)
-                
-    @commands.command()
-    async def play(self, ctx, *, search: str):
 
+    @commands.command           
+    async def play(self, ctx, search: str):
+        # Si el bot no está conectado, conéctalo al canal del usuario
         if not ctx.voice_client:
             channel = ctx.author.voice.channel
             await channel.connect()
-            
-        """Determina si es una playlist de YouTube o Spotify y reproduce"""
-        if "spotify.com" in search:
-            await self.play_spotify_playlist(ctx, search)
-        elif "youtube.com/playlist" in search:
-            await self.play_youtube_playlist(ctx, search)
+
+        # Verificamos si realmente está conectado antes de proceder
+        if not ctx.voice_client.is_connected():
+            await ctx.send("No estoy conectado a un canal de voz.")
+            return
+
+        # Añadimos las canciones a la cola después de asegurarnos que está conectado
+        if "youtube.com" in search or "youtu.be" in search:
+            await self.play_yt(ctx, search)
+        elif "spotify.com" in search:
+            await self.play_sp(ctx, search)
         else:
-            await self.play_youtube_search(ctx, search)
+            await self.search_and_play(ctx, search)
 
     async def play_spotify_playlist(self, ctx, playlist_url: str):
         """Reproduce canciones de una playlist de Spotify"""
