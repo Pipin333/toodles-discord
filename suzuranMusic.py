@@ -19,7 +19,6 @@ class Music(commands.Cog):
         self.song_queue = []  # Lista para almacenar las canciones en cola
         self.current_song = None  # La canción que se está reproduciendo actualmente
         self.voice_client = None  # Conexión de voz del bot
-        self.play_next = asyncio.Event()  # Evento para gestionar la reproducción de la siguiente canción
         self.check_inactivity.start()  # Iniciar la tarea de verificación de inactividad
         self.start_time = None  # Variable para registrar el inicio de la canción
         
