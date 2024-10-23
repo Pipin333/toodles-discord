@@ -153,10 +153,14 @@ class Music(commands.Cog):
         """Realiza una búsqueda en YouTube y añade la canción a la cola"""
         ydl_opts = {
             'format': 'bestaudio/best',
+            'postprocessors': [{
+                'type': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '320',
+            }],
             'quiet': True,
             'noplaylist': True,
-        }
-
+}
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"ytsearch:{search_query}", download=False)
