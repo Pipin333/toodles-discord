@@ -8,6 +8,7 @@ import time
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import os
+import concurrent.futures
 
 # Credenciales de Spotify
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
@@ -21,6 +22,7 @@ class Music(commands.Cog):
         self.voice_client = None  # Conexión de voz del bot
         self.check_inactivity.start()  # Iniciar la tarea de verificación de inactividad
         self.start_time = None  # Variable para registrar el inicio de la canción
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
         
         # Configuración del cliente de Spotify
         self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
@@ -98,24 +100,29 @@ class Music(commands.Cog):
                 return
         await self.delete_user_message(ctx)            
 
-        # Verificar si el bot está conectado
         if not ctx.voice_client.is_connected():
             await ctx.send("No estoy conectado a un canal de voz.")
             return
 
-        # Añadir las canciones a la cola
         if "youtube.com" in search or "youtu.be" in search:
             await self.play_youtube_playlist(ctx, search)
         elif "spotify.com" in search:
-            await self.play_spotify_playlist(ctx, search)
+            await self.load_spotify_playlist(ctx, search)
         else:
             await self.search_and_queue_youtube(ctx, search)
 
+
+    async def load_spotify_playlist(self, ctx, playlist_url: str):
+        """Carga la playlist de Spotify en un hilo separado."""
+        await ctx.send("Cargando playlist de Spotify...")
+        future = self.bot.loop.run_in_executor(self.executor, self.play_spotify_playlist, ctx, playlist_url)
+        await future  # Esperar a que se complete la carga
+        
     async def add_songs_to_queue(self, ctx, playlist):
         """Añade canciones de una playlist a la cola en lotes."""
-        max_songs_to_add = 5  # Límite de canciones por lote
+        max_songs_to_add = 5
         songs = playlist.get('tracks', [])
-        total_batches = (len(songs) + max_songs_to_add - 1) // max_songs_to_add  # Calcular el total de lotes
+        total_batches = (len(songs) + max_songs_to_add - 1) // max_songs_to_add
 
         for i in range(0, len(songs), max_songs_to_add):
             batch = songs[i:i + max_songs_to_add]
@@ -126,36 +133,30 @@ class Music(commands.Cog):
                     'duration': song.get('duration', 0)
                 })
             
-            # Imprimir el lote actual y el total de lotes
             current_batch_number = (i // max_songs_to_add) + 1
-            await ctx.send(f"Añadidas {len(batch)} canciones a la playlist(lote {current_batch_number} de {total_batches}).")
+            await ctx.send(f"Añadidas {len(batch)} canciones a la playlist (lote {current_batch_number} de {total_batches}).")
 
         await ctx.send("Todos los lotes han sido añadidos.")
 
     async def play_spotify_playlist(self, ctx, playlist_url: str):
-        """Reproduce canciones de una playlist de Spotify"""
+        """Reproduce canciones de una playlist de Spotify."""
         try:
-            playlist_id = playlist_url.split("/")[-1].split("?")[0]  # Extrae el ID de la playlist
+            playlist_id = playlist_url.split("/")[-1].split("?")[0]
             results = self.sp.playlist_tracks(playlist_id)
             tracks = results['items']
 
-            for track in tracks:
-                song_name = track['track']['name']
-                artist_name = track['track']['artists'][0]['name']
-                search_query = f"{song_name} {artist_name}"
-
-                await self.search_and_queue_youtube(ctx, search_query)
+            await self.add_songs_to_queue(ctx, {'tracks': [{'title': track['track']['name'], 'url': track['track']['external_urls']['spotify']} for track in tracks]})
 
             await ctx.send(f"🎶 Se añadieron {len(tracks)} canciones de Spotify a la cola.")
         except Exception as e:
             await ctx.send(f"Error al procesar la playlist de Spotify: {e}")
 
     async def play_youtube_playlist(self, ctx, playlist_url: str):
-        """Reproduce canciones de una playlist de YouTube"""
+        """Reproduce canciones de una playlist de YouTube."""
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,
-            'noplaylist': False,  # Cambia a False para procesar playlists
+            'noplaylist': False,
         }
 
         try:
