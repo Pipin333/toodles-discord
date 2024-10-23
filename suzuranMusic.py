@@ -320,6 +320,20 @@ class Music(commands.Cog):
             for idx, song in enumerate(self.song_queue):
                 song_status = "Cargada" if song['loaded'] else "No cargada"
                 queue_message += f"{idx + 1}. **{song['title']}** ({song_status})\n"
+
+            # Enviar mensajes en partes de máximo 1999 caracteres
+            while len(queue_message) > 2000:
+                # Encontrar el último salto de línea dentro del límite de 1999 caracteres
+                split_index = queue_message.rfind('\n', 0, 1999)
+                if split_index == -1:  # No se encontró un salto de línea, tomar el primer segmento
+                    split_index = 1999
+
+                # Enviar la parte del mensaje
+                await ctx.send(queue_message[:split_index])
+                # Reducir el mensaje original
+                queue_message = queue_message[split_index:]
+
+            # Enviar cualquier parte restante
             await ctx.send(queue_message)
         else:
             await ctx.send("La cola de canciones está vacía.")
@@ -330,10 +344,10 @@ class Music(commands.Cog):
         random.shuffle(self.song_queue)
         await ctx.send("La cola de canciones ha sido revuelta.")
             
-        @commands.command(name='q')
-        async def queue_short(self, ctx, *, search: str):
-            """Abreviación del comando queue"""
-            await self.queue(ctx, search)
+    @commands.command(name='q')
+    async def queue_short(self, ctx, *, search: str):
+        """Abreviación del comando queue"""
+        await self.queue(ctx, search)
 
     @commands.command()
     async def add(self, ctx, position: int, *, title: str):
