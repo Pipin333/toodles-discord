@@ -89,6 +89,11 @@ class Music(commands.Cog):
                 
     @commands.command()
     async def play(self, ctx, *, search: str):
+
+        if not ctx.voice_client:
+            channel = ctx.author.voice.channel
+            await channel.connect()
+            
         """Determina si es una playlist de YouTube o Spotify y reproduce"""
         if "spotify.com" in search:
             await self.play_spotify_playlist(ctx, search)
