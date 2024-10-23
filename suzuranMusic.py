@@ -187,7 +187,7 @@ class Music(commands.Cog):
             # Asegurarse de estar conectado y reproducir
             if self.voice_client and self.voice_client.is_connected():
                 source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next_song(ctx)))
+                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self._play_next(ctx)))
             else:
                 await ctx.send("No estoy conectado a un canal de voz.")
         else:
