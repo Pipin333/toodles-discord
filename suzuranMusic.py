@@ -111,6 +111,27 @@ class Music(commands.Cog):
         else:
             await self.search_and_queue_youtube(ctx, search)
 
+    async def add_songs_to_queue(self, ctx, playlist):
+        """Añade canciones de una playlist a la cola en lotes."""
+        max_songs_to_add = 5  # Límite de canciones por lote
+        songs = playlist.get('tracks', [])
+        total_batches = (len(songs) + max_songs_to_add - 1) // max_songs_to_add  # Calcular el total de lotes
+
+        for i in range(0, len(songs), max_songs_to_add):
+            batch = songs[i:i + max_songs_to_add]
+            for song in batch:
+                self.song_queue.append({
+                    'title': song['title'],
+                    'url': song['url'],
+                    'duration': song.get('duration', 0)
+                })
+            
+            # Imprimir el lote actual y el total de lotes
+            current_batch_number = (i // max_songs_to_add) + 1
+            await ctx.send(f"Añadidas {len(batch)} canciones a la playlist(lote {current_batch_number} de {total_batches}).")
+
+        await ctx.send("Todos los lotes han sido añadidos.")
+
     async def play_spotify_playlist(self, ctx, playlist_url: str):
         """Reproduce canciones de una playlist de Spotify"""
         try:
@@ -273,7 +294,7 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error durante la búsqueda: {e}")
             print(f"Error durante la búsqueda: {e}")
-            
+
         await self.delete_user_message(ctx)
 
     @commands.command()
@@ -299,13 +320,25 @@ class Music(commands.Cog):
     async def queue(self, ctx):
         """Muestra la cola de canciones"""
         if self.song_queue:
+            max_length = 2000
             queue_message = "**Cola de canciones:**\n"
+            current_message = ""
+
             for idx, song in enumerate(self.song_queue):
                 formatted_duration = self.format_duration(song.get('duration', 0))
-                queue_message += f"{idx + 1}. **{song['title']}** ({formatted_duration})\n"
-            await ctx.send(queue_message)
+                song_info = f"{idx + 1}. **{song['title']}** ({formatted_duration})\n"
+
+                if len(current_message) + len(song_info) > max_length:
+                    await ctx.send(current_message)
+                    current_message = song_info  # Comienza un nuevo mensaje
+                else:
+                    current_message += song_info
+
+            if current_message:  # Envía el último mensaje si hay contenido
+                await ctx.send(current_message)
         else:
             await ctx.send("La cola de canciones está vacía.")
+
         await self.delete_user_message(ctx)
 
     @commands.command()
