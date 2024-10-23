@@ -87,23 +87,27 @@ class Music(commands.Cog):
                 await ctx.send("No estás conectado a un canal de voz.")
         await self.delete_user_message(ctx)
 
-    @commands.command           
+    @commands.command()
     async def play(self, ctx, search: str):
-        # Si el bot no está conectado, conéctalo al canal del usuario
+        # Conectar al canal de voz si no está conectado
         if not ctx.voice_client:
-            channel = ctx.author.voice.channel
-            await channel.connect()
+            if ctx.author.voice:
+                channel = ctx.author.voice.channel
+                self.voice_client = await channel.connect()
+            else:
+                await ctx.send("Debes estar en un canal de voz para usar este comando.")
+                return
 
-        # Verificamos si realmente está conectado antes de proceder
+        # Verificar si el bot está conectado
         if not ctx.voice_client.is_connected():
             await ctx.send("No estoy conectado a un canal de voz.")
             return
 
-        # Añadimos las canciones a la cola después de asegurarnos que está conectado
+        # Añadir las canciones a la cola
         if "youtube.com" in search or "youtu.be" in search:
-            await self.play_yt(ctx, search)
+            await self.play_youtube_playlist(ctx, search)
         elif "spotify.com" in search:
-            await self.play_sp(ctx, search)
+            await self.play_spotify_playlist(ctx, search)
         else:
             await self.search_and_queue_youtube(ctx, search)
 
@@ -180,10 +184,11 @@ class Music(commands.Cog):
             song_url = song['url']
             song_title = song['title']
 
+            # Asegurarse de estar conectado y reproducir
             if self.voice_client and self.voice_client.is_connected():
                 source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
                 self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
-                await ctx.send(f"Reproduciendo: **{song_title}**")
+                await ctx.send(f"🎶 Reproduciendo: **{song_title}**")
             else:
                 await ctx.send("No estoy conectado a un canal de voz.")
         else:
