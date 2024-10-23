@@ -105,7 +105,7 @@ class Music(commands.Cog):
         elif "spotify.com" in search:
             await self.play_sp(ctx, search)
         else:
-            await self.search_and_play(ctx, search)
+            await self.search_and_queue_youtube(ctx, search)
 
     async def play_spotify_playlist(self, ctx, playlist_url: str):
         """Reproduce canciones de una playlist de Spotify"""
@@ -145,10 +145,6 @@ class Music(commands.Cog):
                 await ctx.send(f"🎶 Se añadieron {len(entries)} canciones de YouTube a la cola.")
         except Exception as e:
             await ctx.send(f"Error al procesar la playlist de YouTube: {e}")
-
-    async def play_youtube_search(self, ctx, search: str):
-        """Reproduce una búsqueda de canción en YouTube"""
-        await self.search_and_queue_youtube(ctx, search)
 
     async def search_and_queue_youtube(self, ctx, search_query: str):
         """Realiza una búsqueda en YouTube y añade la canción a la cola"""
