@@ -179,7 +179,7 @@ class Music(commands.Cog):
 
         if not self.voice_client or not self.voice_client.is_playing():
             await self._play_song(ctx)
-            
+
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola, cargando la URL si es necesario"""
         if self.song_queue:
@@ -312,28 +312,28 @@ class Music(commands.Cog):
         
         await self.delete_user_message(ctx)
 
-@commands.command()
-async def queue(self, ctx):
-    """Muestra la cola de canciones"""
-    if self.song_queue:
-        queue_message = "**Cola de canciones:**\n"
-        for idx, song in enumerate(self.song_queue):
-            song_status = "Cargada" if song['loaded'] else "No cargada"
-            queue_message += f"{idx + 1}. **{song['title']}** ({song_status})\n"
-        await ctx.send(queue_message)
-    else:
-        await ctx.send("La cola de canciones está vacía.")
+    @commands.command()
+    async def queue(self, ctx):
+        """Muestra la cola de canciones"""
+        if self.song_queue:
+            queue_message = "**Cola de canciones:**\n"
+            for idx, song in enumerate(self.song_queue):
+                song_status = "Cargada" if song['loaded'] else "No cargada"
+                queue_message += f"{idx + 1}. **{song['title']}** ({song_status})\n"
+            await ctx.send(queue_message)
+        else:
+            await ctx.send("La cola de canciones está vacía.")
 
-@commands.command()
-async def shuffle(self, ctx):
-    """Revuelve las canciones en la cola"""
-    random.shuffle(self.song_queue)
-    await ctx.send("La cola de canciones ha sido revuelta.")
-        
-    @commands.command(name='q')
-    async def queue_short(self, ctx, *, search: str):
-        """Abreviación del comando queue"""
-        await self.queue(ctx, search)
+    @commands.command()
+    async def shuffle(self, ctx):
+        """Revuelve las canciones en la cola"""
+        random.shuffle(self.song_queue)
+        await ctx.send("La cola de canciones ha sido revuelta.")
+            
+        @commands.command(name='q')
+        async def queue_short(self, ctx, *, search: str):
+            """Abreviación del comando queue"""
+            await self.queue(ctx, search)
 
     @commands.command()
     async def add(self, ctx, position: int, *, title: str):
