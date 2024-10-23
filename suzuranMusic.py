@@ -132,16 +132,10 @@ class Music(commands.Cog):
         """Reproduce canciones de una playlist de YouTube"""
         ydl_opts = {
             'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Evitar listas de reproducción
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
-                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
-            }],
+            'quiet': True,
+            'noplaylist': False,  # Cambia a False para procesar playlists
         }
-        
+
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 playlist_info = ydl.extract_info(playlist_url, download=False)
@@ -162,14 +156,8 @@ class Music(commands.Cog):
 
         ydl_opts = {
             'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Evitar listas de reproducción
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
-                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
-            }],
+            'quiet': True,
+            'noplaylist': False,  # Cambia a False para procesar playlists
         }
 
         try:
@@ -225,14 +213,8 @@ class Music(commands.Cog):
 
         ydl_opts = {
             'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Evitar listas de reproducción
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
-                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
-            }],
+            'quiet': True,
+            'noplaylist': False,  # Cambia a False para procesar playlists
         }
 
         try:
@@ -341,14 +323,8 @@ class Music(commands.Cog):
         
         ydl_opts = {
             'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': True,  # Evitar listas de reproducción
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',  # Puedes cambiar a 'm4a', 'flac', 'wav', etc.
-                'preferredquality': '320',  # Cambiar el bitrate a 192kbps (puedes usar 320 para mejor calidad)
-            }],
+            'quiet': True,
+            'noplaylist': False,  # Cambia a False para procesar playlists
         }
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
