@@ -197,5 +197,264 @@ class Music(commands.Cog):
         else:
             await ctx.send("No hay más canciones en la cola.")
 
+    @commands.command(name='p')
+    async def play_short(self, ctx, *, search: str):
+        """Abreviación del comando play"""
+        await self.play(ctx, search)
+
+    
+    @commands.command()
+    async def search(self, ctx, *, query: str):
+        """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
+
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'noplaylist': False,  # Cambia a False para procesar playlists
+        }
+
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"ytsearch:{query}", download=False)
+                if 'entries' in info:
+                    search_results = info['entries'][:5]
+                    results_message = "Canciones encontradas:\n"
+                    for idx, entry in enumerate(search_results):
+                        title = entry.get('title', 'Sin título')
+                        duration = entry.get('duration', 0)
+                        formatted_duration = self.format_duration(duration)
+                        results_message += f"{idx + 1}. {title} (Duración: {formatted_duration})\n"
+                    
+                    await ctx.send(results_message + "Responde con el número de la canción que quieres reproducir.")
+                    
+                    def check(msg):
+                        return msg.author == ctx.author and msg.channel == ctx.channel and msg.content.isdigit()
+                    
+                    try:
+                        response = await self.bot.wait_for('message', timeout=30.0, check=check)
+                        choice = int(response.content) - 1
+                        if 0 <= choice < len(search_results):
+                            selected_song = search_results[choice]
+                            song = {
+                                'url': selected_song['url'],
+                                'title': selected_song['title'],
+                                'duration': selected_song.get('duration', 0)  # Guardar duración
+                            }
+                            self.song_queue.append(song)
+                            await ctx.send(f"🎶 Canción seleccionada: {selected_song['title']} añadida a la cola.")
+                            
+                            # Verificar si el bot está en un canal de voz antes de intentar reproducir
+                            if not self.voice_client or not self.voice_client.is_connected():
+                                if ctx.author.voice:
+                                    channel = ctx.author.voice.channel
+                                    self.voice_client = await channel.connect()
+                                else:
+                                    await ctx.send("No estoy en un canal de voz. Conéctame a un canal y vuelve a intentar.")
+                            else:
+                                if not self.voice_client.is_playing() and not self.current_song:
+                                    await self._play_song(ctx)
+                        else:
+                            await ctx.send("Número de canción inválido.")
+                    except asyncio.TimeoutError:
+                        await ctx.send("Se agotó el tiempo para seleccionar una canción.")
+                else:
+                    await ctx.send("No se encontraron canciones.")
+        except Exception as e:
+            await ctx.send(f"Error durante la búsqueda: {e}")
+            print(f"Error durante la búsqueda: {e}")
+
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def np(self, ctx):
+        """Muestra la canción que se está reproduciendo actualmente"""
+        if self.current_song:
+            if self.start_time is None:
+                await ctx.send("No se pudo determinar el tiempo transcurrido.")
+                return
+
+            elapsed_time = int(time.time() - self.start_time)
+            total_duration = self.current_song.get('duration', 0)
+            formatted_elapsed_time = self.format_duration(elapsed_time)
+            formatted_total_duration = self.format_duration(total_duration)
+            
+            await ctx.send(f"🎶 Reproduciendo ahora: **{self.current_song['title']}** \nTiempo transcurrido: {formatted_elapsed_time} / {formatted_total_duration}")
+        else:
+            await ctx.send("No hay ninguna canción reproduciéndose en este momento.")
+        
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def queue(self, ctx):
+        """Muestra la cola de canciones"""
+        if self.song_queue:
+            max_length = 2000
+            queue_message = "**Cola de canciones:**\n"
+            current_message = ""
+
+            for idx, song in enumerate(self.song_queue):
+                formatted_duration = self.format_duration(song.get('duration', 0))
+                song_info = f"{idx + 1}. **{song['title']}** ({formatted_duration})\n"
+
+                if len(current_message) + len(song_info) > max_length:
+                    await ctx.send(current_message)
+                    current_message = song_info  # Comienza un nuevo mensaje
+                else:
+                    current_message += song_info
+
+            if current_message:  # Envía el último mensaje si hay contenido
+                await ctx.send(current_message)
+        else:
+            await ctx.send("La cola de canciones está vacía.")
+
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def shuffle(self, ctx):
+        """Revuelve la cola de canciones."""
+        if len(self.song_queue) > 1:
+            random.shuffle(self.song_queue)
+            await ctx.send("🔀 La cola de canciones ha sido revuelta.")
+        else:
+            await ctx.send("No hay suficientes canciones en la cola para revolver.")  
+        await self.delete_user_message(ctx)
+        
+    @commands.command(name='q')
+    async def queue_short(self, ctx, *, search: str):
+        """Abreviación del comando queue"""
+        await self.queue(ctx, search)
+
+    @commands.command()
+    async def add(self, ctx, position: int, *, title: str):
+        """Agrega una canción a una posición específica en la cola"""
+        if position < 1:
+            await ctx.send("La posición debe ser mayor que 0.")
+            return
+        
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'noplaylist': False,  # Cambia a False para procesar playlists
+        }
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"ytsearch:{title}", download=False)
+                if info.get('entries'):
+                    song_info = info['entries'][0]
+                    song_url = song_info['url']
+                    song_title = song_info['title']
+                    song_duration = song_info.get('duration', 0)
+                    
+                    song = {'url': song_url, 'title': song_title, 'duration': song_duration}
+                    self.song_queue.insert(position - 1, song)
+                    await ctx.send(f"🎶 Canción añadida a la posición {position}: **{song_title}**")
+                else:
+                    await ctx.send("No se encontró la canción.")
+        except Exception as e:
+            await ctx.send(f"Error al intentar agregar la canción: {e}")
+            print(f"Error al intentar agregar la canción: {e}")
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def move(self, ctx, current_index: int, new_index: int):
+        """Mueve una canción a una nueva posición en la cola"""
+        if current_index < 1 or new_index < 1:
+            await ctx.send("Los índices deben ser mayores que 0.")
+            return
+
+        if current_index - 1 >= len(self.song_queue) or new_index - 1 >= len(self.song_queue):
+            await ctx.send("Índice fuera de rango.")
+            return
+
+        song = self.song_queue.pop(current_index - 1)
+        self.song_queue.insert(new_index - 1, song)
+        await ctx.send(f"🎶 Canción movida de la posición {current_index} a la posición {new_index}.")
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def remove(self, ctx, index: int):
+        """Elimina una canción de la cola por su índice"""
+        if index < 1 or index > len(self.song_queue):
+            await ctx.send("Índice fuera de rango.")
+            return
+
+        removed_song = self.song_queue.pop(index - 1)
+        await ctx.send(f"🎶 Canción eliminada: **{removed_song['title']}**")
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def clear(self, ctx):
+        """Limpia la cola de canciones"""
+        self.song_queue.clear()
+        await ctx.send("🎵 Cola de canciones limpia.")
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def skip(self, ctx):
+        """Salta la canción actual"""
+        if self.voice_client and self.voice_client.is_playing():
+            self.voice_client.stop()
+            await self.play_next(ctx)
+        else:
+            await ctx.send("No se está reproduciendo ninguna canción.")
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def pause(self, ctx):
+        """Pausa la canción actual"""
+        if self.voice_client and self.voice_client.is_playing():
+            self.voice_client.pause()
+            await ctx.send("⏸️ Canción pausada.")
+        else:
+            await ctx.send("No se está reproduciendo ninguna canción.")
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def resume(self, ctx):
+        """Reanuda la canción pausada"""
+        if self.voice_client and self.voice_client.is_paused():
+            self.voice_client.resume()
+            await ctx.send("▶️ Canción reanudada.")
+        else:
+            await ctx.send("No hay ninguna canción pausada.")
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def stop(self, ctx):
+        """Detiene la canción actual y limpia la cola"""
+        if self.voice_client and self.voice_client.is_playing():
+            self.voice_client.stop()
+            self.song_queue.clear()
+            self.current_song = None
+            await ctx.send("🛑 Canción detenida y cola de canciones limpia.")
+        else:
+            await ctx.send("No se está reproduciendo ninguna canción.")
+        await self.delete_user_message(ctx)
+
+    @commands.command()
+    async def leave(self, ctx):
+        """Desconecta al bot del canal de voz"""
+        if self.voice_client:
+            await self.voice_client.disconnect()
+            self.voice_client = None
+            self.song_queue.clear()
+            self.current_song = None
+            await ctx.send("👋 Desconectado del canal de voz.")
+        else:
+            await ctx.send("No estoy en un canal de voz.")
+        await self.delete_user_message(ctx)
+
+    @tasks.loop(seconds=60)
+    async def check_inactivity(self):
+        """Verifica si el bot debe desconectarse por inactividad"""
+        if self.voice_client and not self.voice_client.is_playing():
+            if not self.song_queue:
+                await self.voice_client.disconnect()
+                self.voice_client = None
+                self.song_queue.clear()
+                self.current_song = None
+                print("Desconectado por inactividad.")
+
+
 async def setup(bot):
    await bot.add_cog(Music(bot))
