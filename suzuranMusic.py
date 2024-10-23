@@ -21,8 +21,10 @@ class Music(commands.Cog):
         self.check_inactivity.start()
         self.start_time = None
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
-        
         self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
+
+        # Semaphore to limit concurrent tasks for loading songs
+        self.semaphore = asyncio.Semaphore(3)  # Limiting to 3 concurrent tasks
 
     async def delete_user_message(self, ctx):
         await asyncio.sleep(0.1)
@@ -54,114 +56,119 @@ class Music(commands.Cog):
             await ctx.send("No estoy conectado a un canal de voz.")
             return
 
+        # Cargar y reproducir solo la primera canción de inmediato
         if "youtube.com" in search or "youtu.be" in search:
-            await self.play_youtube_playlist(ctx, search)
+            await self.play_youtube_first_song(ctx, search)
+            # Luego, cargar el resto en segundo plano
+            await self.load_remaining_youtube_songs(ctx, search)
         elif "spotify.com" in search:
-            await self.load_spotify_playlist(ctx, search)
+            await self.play_spotify_first_song(ctx, search)
+            await self.load_remaining_spotify_songs(ctx, search)
         else:
             await self.search_and_queue_youtube(ctx, search)
 
-
-    async def load_spotify_playlist(self, ctx, playlist_url: str):
-        await ctx.send("Cargando playlist de Spotify...")
-        playlist_id = playlist_url.split("/")[-1].split("?")[0]
-
-        try:
-            results = self.sp.playlist_tracks(playlist_id)
-            tracks = results['items']
-
-            tasks = [
-                self.add_song_to_queue(ctx, track['track'])
-                for track in tracks
-            ]
-            await asyncio.gather(*tasks)
-
-            await ctx.send(f"🎶 Se añadieron {len(tracks)} canciones de Spotify a la cola.")
-        except Exception as e:
-            await ctx.send(f"Error al procesar la playlist de Spotify: {e}")
-
-    async def add_song_to_queue(self, ctx, track):
-        song_name = track['name']
-        artist_name = track['artists'][0]['name']
-        search_query = f"{song_name} {artist_name}"
-        await self.search_and_queue_youtube(ctx, search_query)
-
-    async def add_songs_to_queue(self, ctx, playlist):
-        """Añade canciones de una playlist a la cola en lotes."""
-        max_songs_to_add = 5
-        songs = playlist.get('tracks', [])
-        total_batches = (len(songs) + max_songs_to_add - 1) // max_songs_to_add
-
-        for i in range(0, len(songs), max_songs_to_add):
-            batch = songs[i:i + max_songs_to_add]
-            for song in batch:
-                self.song_queue.append({
-                    'title': song['title'],
-                    'url': song['url'],
-                    'duration': song.get('duration', 0)
-                })
-            
-            current_batch_number = (i // max_songs_to_add) + 1
-            await ctx.send(f"Añadidas {len(batch)} canciones al lote {current_batch_number} de {total_batches}.")
-
-            await asyncio.sleep(1)  # Pausa entre lotes para evitar saturar el servidor
-
-        await ctx.send("Todos los lotes han sido añadidos.")
-
-    async def play_spotify_playlist(self, ctx, playlist_url: str):
-        """Reproduce canciones de una playlist de Spotify."""
-        try:
-            playlist_id = playlist_url.split("/")[-1].split("?")[0]
-            results = self.sp.playlist_tracks(playlist_id)
-            tracks = results['items']
-
-            await self.add_songs_to_queue(ctx, {'tracks': [{'title': track['track']['name'], 'url': track['track']['external_urls']['spotify']} for track in tracks]})
-
-            await ctx.send(f"🎶 Se añadieron {len(tracks)} canciones de Spotify a la cola.")
-        except Exception as e:
-            await ctx.send(f"Error al procesar la playlist de Spotify: {e}")
-
-    async def play_youtube_playlist(self, ctx, playlist_url: str):
-        """Reproduce canciones de una playlist de YouTube utilizando hilos para no bloquear."""
+    async def play_youtube_first_song(self, ctx, playlist_url: str):
+        """Reproduce solo la primera canción de una playlist de YouTube para dar prioridad a la reproducción."""
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,
-            'noplaylist': False,  # Cambia a False para procesar playlists
+            'noplaylist': False,  # Procesar playlist
+        }
+
+        try:
+            # Cargar solo la primera canción de la playlist
+            playlist_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(playlist_url, download=False))
+            first_song = playlist_info['entries'][0]
+            video_url = first_song['url']
+            video_title = first_song['title']
+
+            await self.queue_song(ctx, video_url, video_title)
+            await ctx.send(f"🎶 Ahora reproduciendo: **{video_title}**")
+        except Exception as e:
+            await ctx.send(f"Error al procesar la primera canción de YouTube: {e}")
+
+    async def load_remaining_youtube_songs(self, ctx, playlist_url: str):
+        """Carga las canciones restantes de una playlist de YouTube en segundo plano."""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'noplaylist': False,
         }
 
         try:
             playlist_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(playlist_url, download=False))
-            entries = playlist_info.get('entries', [])
+            entries = playlist_info.get('entries', [])[1:]  # Omitir la primera canción
 
             for entry in entries:
                 video_title = entry.get('title')
                 video_url = entry.get('url')
 
-                await self.queue_song(ctx, video_url, video_title)
+                # Añadir las canciones restantes a la cola
+                async with self.semaphore:  # Controlar las tareas concurrentes
+                    await self.queue_song(ctx, video_url, video_title)
+                await asyncio.sleep(1)  # Pausa para no sobrecargar el sistema
 
-            await ctx.send(f"🎶 Se añadieron {len(entries)} canciones de YouTube a la cola.")
+            await ctx.send(f"🎶 Se añadieron {len(entries)} canciones adicionales de YouTube a la cola.")
         except Exception as e:
-            await ctx.send(f"Error al procesar la playlist de YouTube: {e}")
+            await ctx.send(f"Error al cargar las canciones adicionales de YouTube: {e}")
+
+    async def play_spotify_first_song(self, ctx, playlist_url: str):
+        """Reproduce la primera canción de una playlist de Spotify."""
+        playlist_id = playlist_url.split("/")[-1].split("?")[0]
+
+        try:
+            results = self.sp.playlist_tracks(playlist_id)
+            first_track = results['items'][0]['track']
+
+            song_name = first_track['name']
+            artist_name = first_track['artists'][0]['name']
+            search_query = f"{song_name} {artist_name}"
+
+            await self.search_and_queue_youtube(ctx, search_query)
+        except Exception as e:
+            await ctx.send(f"Error al procesar la primera canción de Spotify: {e}")
+
+    async def load_remaining_spotify_songs(self, ctx, playlist_url: str):
+        """Carga las canciones restantes de una playlist de Spotify en segundo plano."""
+        playlist_id = playlist_url.split("/")[-1].split("?")[0]
+
+        try:
+            results = self.sp.playlist_tracks(playlist_id)
+            tracks = results['items'][1:]  # Omitir la primera canción
+
+            for track in tracks:
+                song_name = track['track']['name']
+                artist_name = track['track']['artists'][0]['name']
+                search_query = f"{song_name} {artist_name}"
+
+                async with self.semaphore:  # Controlar las tareas concurrentes
+                    await self.search_and_queue_youtube(ctx, search_query)
+                await asyncio.sleep(1)  # Pausa para no sobrecargar el sistema
+
+            await ctx.send(f"🎶 Se añadieron {len(tracks)} canciones adicionales de Spotify a la cola.")
+        except Exception as e:
+            await ctx.send(f"Error al cargar las canciones adicionales de Spotify: {e}")
 
     async def search_and_queue_youtube(self, ctx, search_query: str):
         """Realiza una búsqueda en YouTube y añade la canción a la cola sin bloquear el hilo principal."""
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,
-            'noplaylist': True,  # Cambia a False para procesar playlists
+            'noplaylist': True,
         }
 
         try:
             # Ejecuta yt_dlp en un hilo separado para no bloquear el hilo principal
-            info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{search_query}", download=False))
-            if info.get('entries'):
-                song_info = info['entries'][0]
-                song_url = song_info['url']
-                song_title = song_info['title']
+            async with self.semaphore:  # Limitar tareas concurrentes
+                info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{search_query}", download=False))
+                if info.get('entries'):
+                    song_info = info['entries'][0]
+                    song_url = song_info['url']
+                    song_title = song_info['title']
 
-                await self.queue_song(ctx, song_url, song_title)
-            else:
-                await ctx.send("No se encontró la canción.")
+                    await self.queue_song(ctx, song_url, song_title)
+                else:
+                    await ctx.send("No se encontró la canción.")
         except Exception as e:
             await ctx.send(f"Error al intentar añadir la canción: {e}")
 
@@ -202,7 +209,6 @@ class Music(commands.Cog):
         """Abreviación del comando play"""
         await self.play(ctx, search)
 
-    
     @commands.command()
     async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
