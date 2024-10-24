@@ -391,13 +391,19 @@ class Music(commands.Cog):
         if self.current_song:
             elapsed_time = time.time() - self.start_time
             formatted_elapsed_time = self.format_duration(elapsed_time)
+            
+            # Asegúrate de que la duración total esté disponible en la canción actual
+            total_duration = self.current_song['duration']  # Asegúrate de que 'duration' esté definido
+            formatted_total_duration = self.format_duration(total_duration)
+
             song_title = self.current_song['title']
             
-            await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**\n⏳ Tiempo transcurrido: {formatted_elapsed_time}")
+            await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**\n⏳ Tiempo transcurrido: {formatted_elapsed_time}/{formatted_total_duration}")
         else:
             await ctx.send("⚠️ No hay ninguna canción reproduciéndose en este momento.")
 
-    @commands.command()
+    @commands.command(name='q')
+    @commands.command(name='queue')
     async def queue(self, ctx):
         """Muestra la cola de canciones en páginas de 15 elementos"""
         items_per_page = 15
@@ -459,12 +465,6 @@ class Music(commands.Cog):
         """Revuelve las canciones en la cola"""
         random.shuffle(self.song_queue)
         await ctx.send("La cola de canciones ha sido revuelta.")
-            
-    @commands.command(name='q')
-    async def queue_short(self, ctx, *, search: str):
-        """Abreviación del comando queue"""
-        # Llama al comando queue, pasando ctx y el argumento search
-        await self.queue(ctx, search)  # Asegúrate de pasar el argumento search
 
     @commands.command()
     async def add(self, ctx, position: int, *, title: str):
