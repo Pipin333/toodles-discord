@@ -84,26 +84,22 @@ class Music(commands.Cog):
             await ctx.send("No estoy conectado a un canal de voz.")
             return
         
-        # Añadir las canciones a la cola dependiendo del tipo de URL o búsqueda
-        if "youtube.com/playlist" in search:
-            await self.play_youtube_playlist(ctx, search)
-        elif "spotify.com/playlist" in search:
-            await self.play_spotify_first_song(ctx, search)
+        # Manejo de URLs
+        if "youtube.com/watch" in search or "youtu.be/" in search:
+            await self.search_and_queue_youtube(ctx, search)
         elif "spotify.com/track" in search:
-            # Reproducción de una sola canción de Spotify
             await self.play_spotify_track(ctx, search)
-        elif "youtube.com/watch" in search:
-            # Reproducción de una sola canción de YouTube
-            await self.search_and_queue_youtube(ctx, search)
+        elif "spotify.com/playlist" in search:
+            await self.play_spotify_playlist(ctx, search)
+        elif "youtube.com/playlist" in search:
+            await self.play_youtube_playlist(ctx, search)
         else:
-            # Búsqueda genérica de YouTube
-            await self.search_and_queue_youtube(ctx, search)
+            await self.search_and_queue_youtube(ctx, search)  # Búsqueda genérica
 
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
         """Abreviación del comando play"""
         await self.play(ctx, search)
-
 
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola."""
@@ -291,19 +287,22 @@ class Music(commands.Cog):
             'noplaylist': True,
         }
 
-        try:
-            async with self.semaphore:  # Limitar tareas concurrentes
-                info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{search_query}", download=False))
-                if info.get('entries'):
-                    song_info = info['entries'][0]
-                    song_url = song_info['url']  # Puedes guardar la URL aquí
-                    song_title = song_info['title']
-
-                    await self.queue_song(ctx, song_title)  # Solo pasa el título
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            try:
+                info = ydl.extract_info(search, download=False)  # Cambia download=True a False para obtener solo la información
+                if 'entries' in info:
+                    # Si hay múltiples entradas (como en listas de reproducción)
+                    for entry in info['entries']:
+                        title = entry['title']
+                        url = entry['url']
+                        # Añade el título y URL a la cola aquí
+                        await self.add_to_queue(ctx, title, url)
                 else:
-                    await ctx.send("No se encontró la canción.")
-        except Exception as e:
-            await ctx.send(f"Error al intentar añadir la canción: {e}")
+                    title = info['title']
+                    url = info['url']
+                    await self.add_to_queue(ctx, title, url)
+            except Exception as e:
+                await ctx.send(f"Ocurrió un error al buscar la canción: {e}")
 
     async def queue_song(self, ctx, song_title: str):
         """Añade una canción como placeholder a la cola (sin URL por el momento)"""
