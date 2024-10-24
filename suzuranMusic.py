@@ -378,21 +378,19 @@ class Music(commands.Cog):
 
     @commands.command()
     async def search(self, ctx, *, query: str):
-        """Busca canciones en YouTube y permite elegir entre las primeras coincidencias"""
-
+        """Busca canciones en YouTube y permite elegir entre las primeras coincidencias."""
+        
         ydl_opts = {
             'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Cambia a False para procesar playlists
+            'quiet': True,  # Evita mostrar mensajes verbosos
         }
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                # Realiza la búsqueda en YouTube
+                # Realiza la búsqueda usando ytsearchall
                 info = ydl.extract_info(f"ytsearchall:{query}", download=False)
                 if 'entries' in info:
-                    search_results = info['entries'][:10]  # Obtén hasta 10 resultados
+                    search_results = info['entries'][:10]  # Limitar a las primeras 10 entradas
                     results_message = "🎵 Canciones encontradas:\n"
                     
                     for idx, entry in enumerate(search_results):
@@ -400,12 +398,14 @@ class Music(commands.Cog):
                         duration = entry.get('duration', 0)
                         formatted_duration = self.format_duration(duration)
                         results_message += f"{idx + 1}. **{title}** (Duración: {formatted_duration})\n"
-                    
+
                     await ctx.send(results_message + "Responde con el número de la canción que quieres reproducir.")
-                    
+
                     def check(msg):
-                        return msg.author == ctx.author and msg.channel == ctx.channel and msg.content.isdigit()
-                    
+                        return (msg.author == ctx.author and
+                                msg.channel == ctx.channel and
+                                msg.content.isdigit())
+
                     try:
                         response = await self.bot.wait_for('message', timeout=30.0, check=check)
                         choice = int(response.content) - 1
@@ -417,8 +417,8 @@ class Music(commands.Cog):
                                 'duration': selected_song.get('duration', 0)  # Guardar duración
                             }
                             self.song_queue.append(song)
-                            await ctx.send(f"🎶 Canción seleccionada: **{selected_song['title']}** añadida a la cola.")
-                            
+                            await ctx.send(f"🎶 Canción seleccionada: {selected_song['title']} añadida a la cola.")
+
                             # Verificar si el bot está en un canal de voz antes de intentar reproducir
                             if not self.voice_client or not self.voice_client.is_connected():
                                 if ctx.author.voice:
@@ -430,13 +430,13 @@ class Music(commands.Cog):
                                 if not self.voice_client.is_playing() and not self.current_song:
                                     await self._play_song(ctx)
                         else:
-                            await ctx.send("Número de canción inválido. Por favor, elige un número de la lista.")
+                            await ctx.send("Número de canción inválido.")
                     except asyncio.TimeoutError:
-                        await ctx.send("Se agotó el tiempo para seleccionar una canción. Inténtalo de nuevo.")
+                        await ctx.send("Se agotó el tiempo para seleccionar una canción.")
                 else:
                     await ctx.send("No se encontraron canciones.")
         except Exception as e:
-            await ctx.send(f"⚠️ Error durante la búsqueda: {e}")
+            await ctx.send(f"Error durante la búsqueda: {e}")
             print(f"Error durante la búsqueda: {e}")
 
         await self.delete_user_message(ctx)
