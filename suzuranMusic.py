@@ -422,7 +422,7 @@ class Music(commands.Cog):
             await ctx.send("⚠️ No hay ninguna canción reproduciéndose en este momento.")
 
 
-    @commands.command  # Si deseas mantener ambos, necesitarás implementar esto de forma diferente.
+    @commands.command(name='queue', aliases=['q'])
     async def queue(self, ctx):
         """Muestra la cola de canciones en páginas de 15 elementos"""
         items_per_page = 15
@@ -462,8 +462,10 @@ class Music(commands.Cog):
             # Loop para controlar la navegación
             while True:
                 try:
-                    reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
-                    
+                    # Reducir el tiempo de espera a 10 segundos
+                    reaction, user = await self.bot.wait_for('reaction_add', timeout=20.0, check=check)
+
+                    # Mejorar la responsividad cambiando la página solo si la reacción es válida
                     if str(reaction.emoji) == '➡️' and current_page < total_pages:
                         current_page += 1
                         await message.edit(content=get_page(current_page))
@@ -471,18 +473,13 @@ class Music(commands.Cog):
                         current_page -= 1
                         await message.edit(content=get_page(current_page))
 
-                    # Eliminar la reacción del usuario para evitar confusión
+                    # Eliminar la reacción del usuario inmediatamente para evitar confusión
                     await message.remove_reaction(reaction, user)
 
                 except asyncio.TimeoutError:
                     # Eliminar las reacciones si se acaba el tiempo
                     await message.clear_reactions()
                     break
-
-    # Comando corto para 'q'
-    @commands.command(name='q', aliases=['queue'])
-    async def queue_short(self, ctx):
-        await self.queue(ctx)  # Llama al comando queue
 
     @commands.command()
     async def shuffle(self, ctx):
