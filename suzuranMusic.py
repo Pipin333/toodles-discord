@@ -164,15 +164,14 @@ class Music(commands.Cog):
         }
 
         try:
-            # Ejecuta yt_dlp en un hilo separado para no bloquear el hilo principal
             async with self.semaphore:  # Limitar tareas concurrentes
                 info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{search_query}", download=False))
                 if info.get('entries'):
                     song_info = info['entries'][0]
-                    song_url = song_info['url']
+                    song_url = song_info['url']  # Puedes guardar la URL aquí
                     song_title = song_info['title']
 
-                    await self.queue_song(ctx, song_url, song_title)
+                    await self.queue_song(ctx, song_title)  # Solo pasa el título
                 else:
                     await ctx.send("No se encontró la canción.")
         except Exception as e:
@@ -183,7 +182,6 @@ class Music(commands.Cog):
         self.song_queue.append({'title': song_title, 'url': None, 'loaded': False})
         await ctx.send(f"🔸 Añadido a la cola: **{song_title}** (Pendiente de carga de URL)")
 
-        # Llama a _play_song solo si no hay canciones reproduciéndose
         if not self.voice_client or not self.voice_client.is_playing():
             await self._play_song(ctx)
 
