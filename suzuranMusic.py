@@ -37,11 +37,36 @@ class Music(commands.Cog):
         except discord.HTTPException as e:
             await ctx.send(f"Error al borrar el mensaje: {e}")
     
-    def format_duration(seconds):
-        """Formatea la duración en un formato mm:ss."""
-        minutes, seconds = divmod(seconds, 60)
-        return f"{minutes}:{seconds:02d}"
+    def format_duration(self, duration):
+        """Convierte una duración en segundos a un formato legible (HH:MM:SS)"""
+        hours, remainder = divmod(duration, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
 
+
+    @commands.command()
+    async def help(self, ctx):
+        """Muestra una lista de comandos disponibles"""
+        help_message = (
+            "**Comandos de Toodles Music:**\n"
+            "`td?help` - Muestra este mensaje.\n"
+            "`td?join` - Conecta el bot al canal de voz.\n"
+            "`td?play / td?p <título>` - Agrega una canción a la cola y empieza a reproducir si no hay ninguna canción en curso.\n"
+            "`td?search <título>` - Busca el nombre de una canccion y muestra una lista con las coincidencias.\n"
+            "`td?queue / td?q` - Muestra la cola actual de canciones.\n"
+            "`td?add [posición] <título>` - Agrega una canción a una posición específica en la cola.\n"
+            "`td?remove <índice>` - Elimina una canción de la cola por su índice.\n"
+            "`td?clear` - Limpia la cola de canciones.\n"
+            "`td?skip` - Salta la canción actual.\n"
+            "`td?pause` - Pausa la canción actual.\n"
+            "`td?resume` - Reanuda la canción pausada.\n"
+            "`td?stop` - Detiene la canción actual y limpia la cola.\n"
+            "`td?leave` - Desconecta el bot del canal de voz.\n"
+            "`td?shuffle` - Revuelve la cola de canciones actual.\n"
+        )
+        await ctx.send(help_message)
+
+    
     @commands.command()
     async def play(self, ctx, search: str):
         # Conectar al canal de voz si no está conectado
@@ -95,11 +120,24 @@ class Music(commands.Cog):
 
             await ctx.send(f"🎶 Se añadieron {total_songs} canciones a la cola. Las URLs se están cargando en segundo plano.")
 
-            # Cargar las URLs en segundo plano mientras las canciones aparecen en la cola
-            await self.load_songs_in_background(ctx, self.song_queue)
+            # Cargar las URLs en segundo plano
+            await self.load_songs_in_background(ctx)  # Cambiado a preload_next_song
         except Exception as e:
             await ctx.send(f"⚠️ Error al procesar la playlist de YouTube: {e}")
-            
+
+    async def load_songs_in_background(self, ctx):
+        """Carga las URLs de las canciones en segundo plano."""
+        while self.song_queue:
+            song = self.song_queue[0]  # Ver la primera canción en la cola
+            if not song['loaded']:
+                loaded_song = await self.load_song_url(song['title'])  # Cargar la URL
+                if loaded_song and loaded_song['url']:
+                    # Actualizar la canción en la cola
+                    song['url'] = loaded_song['url']
+                    song['loaded'] = True
+                    await ctx.send(f"🔸 URL cargada para: **{song['title']}**")
+            await asyncio.sleep(1)  # Pausa para no sobrecargar el bot
+
     async def play_spotify_first_song(self, ctx, playlist_url: str):
         """Reproduce la primera canción de una playlist de Spotify, y añade el resto como placeholders"""
         playlist_id = playlist_url.split("/")[-1].split("?")[0]
@@ -275,8 +313,8 @@ class Music(commands.Cog):
 
             await ctx.send(f"🎶 Se añadieron {total_songs} canciones a la cola. Las URLs se están cargando en segundo plano.")
 
-            # Cargar las URLs en segundo plano
-            await self.load_songs_in_background(ctx)
+            # Cargar las URLs en segundo plano utilizando el método adecuado
+            await self.load_songs_in_background(ctx, entries)
         except Exception as e:
             await ctx.send(f"⚠️ Error al procesar la playlist de YouTube: {e}")
 
@@ -347,24 +385,17 @@ class Music(commands.Cog):
 
         await self.delete_user_message(ctx)
 
-    @commands.command()
+    @commands.command(name='np')
     async def np(self, ctx):
-        """Muestra la canción que se está reproduciendo actualmente"""
+        """Muestra la canción que se está reproduciendo actualmente."""
         if self.current_song:
-            if self.start_time is None:
-                await ctx.send("No se pudo determinar el tiempo transcurrido.")
-                return
-
-            elapsed_time = int(time.time() - self.start_time)
-            total_duration = self.current_song.get('duration', 0)  # Duración total de la canción
+            elapsed_time = time.time() - self.start_time
             formatted_elapsed_time = self.format_duration(elapsed_time)
-            formatted_total_duration = self.format_duration(total_duration)
+            song_title = self.current_song['title']
             
-            await ctx.send(f"🎶 Reproduciendo ahora: **{self.current_song['title']}** \nTiempo transcurrido: {formatted_elapsed_time} / {formatted_total_duration}")
+            await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**\n⏳ Tiempo transcurrido: {formatted_elapsed_time}")
         else:
-            await ctx.send("No hay ninguna canción reproduciéndose en este momento.")
-        
-        await self.delete_user_message(ctx)
+            await ctx.send("⚠️ No hay ninguna canción reproduciéndose en este momento.")
 
     @commands.command()
     async def queue(self, ctx):
@@ -432,7 +463,8 @@ class Music(commands.Cog):
     @commands.command(name='q')
     async def queue_short(self, ctx, *, search: str):
         """Abreviación del comando queue"""
-        await self.queue(self, ctx)
+        # Llama al comando queue, pasando ctx y el argumento search
+        await self.queue(ctx, search)  # Asegúrate de pasar el argumento search
 
     @commands.command()
     async def add(self, ctx, position: int, *, title: str):
