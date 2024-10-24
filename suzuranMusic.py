@@ -227,21 +227,33 @@ class Music(commands.Cog):
             return {'title': song_title, 'url': None, 'loaded': False}
         
     async def load_songs_in_background(self, ctx, songs):
-        """Carga las URLs de las canciones en segundo plano"""
+        """Carga las URLs de las canciones en segundo plano, deteniéndose si el bot se desconecta o la cola se vacía"""
         await ctx.send("🔄 Comenzando a cargar las URLs de las canciones en segundo plano...")
-        
+
         for song in songs:
-            if not song['loaded']:
+            # Verificar si el bot sigue conectado al canal de voz
+            if not self.voice_client or not self.voice_client.is_connected():
+                await ctx.send("⚠️ El bot se desconectó del canal de voz. Se ha detenido la carga de canciones.")
+                break
+            
+            # Verificar si la cola sigue teniendo canciones
+            if len(self.song_queue) == 0:
+                await ctx.send("⚠️ La cola está vacía. Se ha detenido la carga de canciones.")
+                break
+            
+            if not song['loaded']:  # Si la canción aún no tiene su URL cargada
                 loaded_song = await self.load_song_url(song['title'])
-                song.update(loaded_song)
+                song.update(loaded_song)  # Actualizar la información con la URL cargada
+
+                # Mensajes de estado para cada canción
                 if song['loaded']:
                     await ctx.send(f"✅ URL cargada para: **{song['title']}**")
                 else:
                     await ctx.send(f"⚠️ No se pudo cargar la URL para: **{song['title']}**")
+            
             await asyncio.sleep(1)  # Pausa entre cargas para no sobrecargar el bot
         
         await ctx.send("✅ Todas las URLs de las canciones han sido cargadas.")
-
 
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
