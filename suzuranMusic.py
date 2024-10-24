@@ -253,7 +253,7 @@ class Music(commands.Cog):
             'quiet': True,
             'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
         }
-        self.is_loading_songs = True  # Indicar que se están cargando canciones
+        self.is_preloading = True  # Indicar que se están cargando canciones
         try:
             # Extraer información completa de la playlist
             playlist_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(playlist_url, download=False))
@@ -277,7 +277,7 @@ class Music(commands.Cog):
             await ctx.send(f"⚠️ Error al procesar la playlist de YouTube: {e}")
 
         finally:
-            self.is_loading_songs = False  # Restablecer al finalizar
+            self.is_preloading = False  # Restablecer al finalizar
 
     async def search_and_queue_youtube(self, ctx, search_query: str):
         """Realiza una búsqueda en YouTube y añade la canción a la cola sin bloquear el hilo principal."""
@@ -646,7 +646,7 @@ class Music(commands.Cog):
     async def check_inactivity(self):
         """Verifica si el bot debe desconectarse por inactividad"""
         if self.voice_client and not self.voice_client.is_playing():
-            if not self.song_queue and not self.is_loading_songs:  # Verificar si no está cargando canciones
+            if not self.song_queue and not self.is_preloading:  # Verificar si no está cargando canciones
                 await self.voice_client.disconnect()
                 self.voice_client = None
                 self.song_queue.clear()
