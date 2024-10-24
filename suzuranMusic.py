@@ -278,7 +278,7 @@ class Music(commands.Cog):
         finally:
             self.is_preloading = False  # Restablecer al finalizar
 
-    async def search_and_queue_youtube(self, ctx, search_query: str):
+    async def search_and_queue_youtube(self, ctx, search: str):
         """Realiza una búsqueda en YouTube y añade la canción a la cola sin bloquear el hilo principal."""
         ydl_opts = {
             'format': 'bestaudio/best',
