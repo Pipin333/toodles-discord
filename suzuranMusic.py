@@ -23,6 +23,7 @@ class Music(commands.Cog):
         self.start_time = None
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
         self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
+        self.is_preloading = False  # Indicador para controlar la precarga
 
         # Semaphore to limit concurrent tasks for loading songs
         self.semaphore = asyncio.Semaphore(3)  # Limiting to 3 concurrent tasks
@@ -36,9 +37,9 @@ class Music(commands.Cog):
         except discord.HTTPException as e:
             await ctx.send(f"Error al borrar el mensaje: {e}")
     
-    def format_duration(self, duration):
-        """Convierte la duración de la canción de segundos a minutos:segundos"""
-        minutes, seconds = divmod(duration, 60)
+    def format_duration(seconds):
+        """Formatea la duración en un formato mm:ss."""
+        minutes, seconds = divmod(seconds, 60)
         return f"{minutes}:{seconds:02d}"
 
     @commands.command()
@@ -65,6 +66,10 @@ class Music(commands.Cog):
             await self.play_spotify_first_song(ctx, search)
         else:
             await self.search_and_queue_youtube(ctx, search)
+
+    async def play_next(self, ctx):
+        """Reproduce la siguiente canción en la cola."""
+        await self._play_song(ctx)
 
     async def play_youtube_playlist(self, ctx, playlist_url: str):
         """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano"""
@@ -179,7 +184,8 @@ class Music(commands.Cog):
 
     async def queue_song(self, ctx, song_title: str):
         """Añade una canción como placeholder a la cola (sin URL por el momento)"""
-        self.song_queue.append({'title': song_title, 'url': None, 'loaded': False})
+        song = {'title': song_title, 'url': None, 'loaded': False, 'duration': 0}  # Incluye duración aquí
+        self.song_queue.append(song)
         await ctx.send(f"🔸 Añadido a la cola: **{song_title}** (Pendiente de carga de URL)")
 
         if not self.voice_client or not self.voice_client.is_playing():
@@ -199,17 +205,36 @@ class Music(commands.Cog):
             self.current_song = song  # Actualiza la canción actual
             self.start_time = time.time()
 
-            if self.voice_client and self.voice_client.is_connected():
+            if self.voice_client.is_connected():
                 source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
                 self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
+
+                # Inicia la precarga de la siguiente canción
+                await self.preload_next_song(ctx)
+
                 await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**")
             else:
                 await ctx.send("⚠️ No estoy conectado a un canal de voz.")
         else:
             await ctx.send("⚠️ No hay más canciones en la cola.")
 
+    async def preload_next_song(self, ctx):
+        """Carga la URL de la próxima canción en la cola, asegurándose de que solo una canción se cargue a la vez."""
+        if self.is_preloading:
+            return  # Si ya se está precargando, salimos de la función
+
+        self.is_preloading = True  # Marcamos que estamos precargando
+
+        if len(self.song_queue) > 0:  # Verifica si hay más canciones en la cola
+            next_song = self.song_queue[0]  # Mira la siguiente canción sin sacarla de la cola
+            if not next_song['loaded']:
+                loaded_song = await self.load_song_url(next_song['title'])
+                self.song_queue[0] = loaded_song  # Actualiza la canción en la cola con la URL cargada
+
+        self.is_preloading = False  # Reiniciamos el indicador de precarga
+
     async def load_song_url(self, song_title):
-        """Carga la URL de una canción usando YouTube"""
+        """Carga la URL de una canción usando YouTube y extrae su duración."""
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,
@@ -221,10 +246,11 @@ class Music(commands.Cog):
             if info.get('entries'):
                 song_info = info['entries'][0]
                 song_url = song_info['url']
-                return {'title': song_title, 'url': song_url, 'loaded': True}
+                song_duration = song_info.get('duration', 0)  # Obtener duración de la canción
+                return {'title': song_title, 'url': song_url, 'duration': song_duration, 'loaded': True}
         except Exception as e:
-            return {'title': song_title, 'url': None, 'loaded': False}
-        
+            return {'title': song_title, 'url': None, 'duration': 0, 'loaded': False}
+            
     async def play_youtube_playlist(self, ctx, playlist_url: str):
         """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano"""
         ydl_opts = {
@@ -330,7 +356,7 @@ class Music(commands.Cog):
                 return
 
             elapsed_time = int(time.time() - self.start_time)
-            total_duration = self.current_song.get('duration', 0)
+            total_duration = self.current_song.get('duration', 0)  # Duración total de la canción
             formatted_elapsed_time = self.format_duration(elapsed_time)
             formatted_total_duration = self.format_duration(total_duration)
             
