@@ -130,12 +130,13 @@ class Music(commands.Cog):
 
             await ctx.send(f"🎶 Se añadieron {total_songs} canciones a la cola. Las URLs se están cargando en segundo plano.")
 
-            # Cargar las URLs en segundo plano
-            await self.load_songs_in_background(ctx)  # Cambiado a preload_next_song
-
             # Reproducir la primera canción si existe
             if self.song_queue:
-                await self.play_song(ctx, self.song_queue[0])  # Asume que tienes un método play_song
+                first_song = self.song_queue[0]  # Asume que tienes una cola de canciones
+                await self.play_song(ctx, first_song)  # Reproduce la primera canción
+
+                # Cargar las URLs en segundo plano
+                await self.load_songs_in_background(ctx)  # Cambia esto si tienes un método diferente
 
         except Exception as e:
             await ctx.send(f"⚠️ Error al procesar la playlist de YouTube: {e}")
