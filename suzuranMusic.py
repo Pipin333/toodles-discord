@@ -296,11 +296,11 @@ class Music(commands.Cog):
                     for entry in info['entries']:
                         title = entry['title']
                         url = entry['url']
-                        await self.add_to_queue(ctx, title, url)
+                        await self.queue_song(ctx, title, url)
                 else:
                     title = info['title']
                     url = info['url']
-                    await self.add_to_queue(ctx, title, url)
+                    await self.queue_song(ctx, title, url)
             except Exception as e:
                 await ctx.send(f"Ocurrió un error al buscar la canción: {str(e)}")
 
