@@ -289,20 +289,20 @@ class Music(commands.Cog):
 
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             try:
+                # Aquí utilizamos la variable `search` directamente
                 info = ydl.extract_info(search, download=False)  # Cambia download=True a False para obtener solo la información
                 if 'entries' in info:
                     # Si hay múltiples entradas (como en listas de reproducción)
                     for entry in info['entries']:
                         title = entry['title']
                         url = entry['url']
-                        # Añade el título y URL a la cola aquí
                         await self.add_to_queue(ctx, title, url)
                 else:
                     title = info['title']
                     url = info['url']
                     await self.add_to_queue(ctx, title, url)
             except Exception as e:
-                await ctx.send(f"Ocurrió un error al buscar la canción: {e}")
+                await ctx.send(f"Ocurrió un error al buscar la canción: {str(e)}")
 
     async def queue_song(self, ctx, song_title: str):
         """Añade una canción como placeholder a la cola (sin URL por el momento)"""
