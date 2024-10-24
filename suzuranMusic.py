@@ -178,16 +178,14 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error al intentar añadir la canción: {e}")
 
-    async def queue_song(self, ctx, song_title: str, song_url: str = None):
-        """Añade una canción como placeholder a la cola (puede incluir URL)"""
-        self.song_queue.append({'title': song_title, 'url': song_url, 'loaded': song_url is not None})
-        await ctx.send(f"🔸 Añadido a la cola: **{song_title}** (Pendiente de cargar URL)" if not song_url else f"🔸 Añadido a la cola: **{song_title}** (URL cargada)")
+    async def queue_song(self, ctx, song_title: str):
+        """Añade una canción como placeholder a la cola (sin URL por el momento)"""
+        self.song_queue.append({'title': song_title, 'url': None, 'loaded': False})
+        await ctx.send(f"🔸 Añadido a la cola: **{song_title}** (Pendiente de carga de URL)")
 
+        # Llama a _play_song solo si no hay canciones reproduciéndose
         if not self.voice_client or not self.voice_client.is_playing():
             await self._play_song(ctx)
-
-            if not self.voice_client or not self.voice_client.is_playing():
-                await self._play_song(ctx)
 
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola, cargando la URL si es necesario"""
