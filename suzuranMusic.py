@@ -300,7 +300,7 @@ class Music(commands.Cog):
                 else:
                     title = info['title']
                     url = info['url']
-                    await self.queue_song(ctx, title, url)
+                    await self.queue_song(ctx, title)
             except Exception as e:
                 await ctx.send(f"Ocurrió un error al buscar la canción: {str(e)}")
 
