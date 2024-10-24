@@ -28,13 +28,13 @@ async def check_shutdown():
 @bot.event
 async def on_ready():
     print(f'Conectado como {bot.user.name}')
-    check_shutdown.start()
+    check_shutdown.start()  # Inicia la tarea de apagado
 
-    # Verifica si el mensaje está en el canal específico
+# Mover la verificación de mensajes a on_message
+@bot.event
+async def on_message(message):
     if message.channel.id == CHANNEL_ID_CLIPS:
-        # Verifica si el autor del mensaje tiene permisos de administrador
         if not message.author.guild_permissions.administrator:
-            # Elimina el mensaje si no tiene archivos adjuntos y el autor no es administrador
             if not message.attachments:
                 await message.delete()
 
