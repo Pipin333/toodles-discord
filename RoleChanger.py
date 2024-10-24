@@ -55,5 +55,14 @@ class RoleNameChanger(commands.Cog):
     async def before_check_roles(self):
         await self.bot.wait_until_ready()
 
+    # Comando para actualizar manualmente los apodos de todos los miembros
+    @commands.command(name="update_nicknames")
+    @commands.has_permissions(administrator=True)  # Solo los administradores pueden usar este comando
+    async def roles(self, ctx):
+        await ctx.send("Actualizando apodos de todos los miembros...")
+        for member in ctx.guild.members:
+            await self.update_nickname(member)
+        await ctx.send("Apodos actualizados correctamente.")
+
 async def setup(bot):
     await bot.add_cog(RoleNameChanger(bot))
