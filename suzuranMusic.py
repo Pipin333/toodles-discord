@@ -438,24 +438,24 @@ class Music(commands.Cog):
 
         await self.delete_user_message(ctx)
 
-@commands.command(name='np')
-async def np(self, ctx):
-    """Muestra la canción que se está reproduciendo actualmente."""
-    if self.current_song:
-        total_duration = self.current_song['duration']  # Asegúrate de que 'duration' esté definido
-        song_title = self.current_song['title']
+    @commands.command(name='np')
+    async def np(self, ctx):
+        """Muestra la canción que se está reproduciendo actualmente."""
+        if self.current_song:
+            total_duration = self.current_song['duration']  # Asegúrate de que 'duration' esté definido
+            song_title = self.current_song['title']
 
-        while self.voice_client.is_playing():  # Verifica si la canción aún se está reproduciendo
-            elapsed_time = time.time() - self.start_time
-            formatted_elapsed_time = self.format_duration(elapsed_time)
-            formatted_total_duration = self.format_duration(total_duration)
+            while self.voice_client.is_playing():  # Verifica si la canción aún se está reproduciendo
+                elapsed_time = time.time() - self.start_time
+                formatted_elapsed_time = self.format_duration(elapsed_time)
+                formatted_total_duration = self.format_duration(total_duration)
 
-            # Enviar el mensaje con el estado actual de la canción
-            await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**\n⏳ Tiempo transcurrido: {formatted_elapsed_time}/{formatted_total_duration}")
-            await asyncio.sleep(1)  # Espera un segundo antes de actualizar nuevamente
+                # Enviar el mensaje con el estado actual de la canción
+                await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**\n⏳ Tiempo transcurrido: {formatted_elapsed_time}/{formatted_total_duration}")
+                await asyncio.sleep(1)  # Espera un segundo antes de actualizar nuevamente
 
-    else:
-        await ctx.send("⚠️ No hay ninguna canción reproduciéndose en este momento.")
+        else:
+            await ctx.send("⚠️ No hay ninguna canción reproduciéndose en este momento.")
 
 
     @commands.command(name='queue', aliases=['q'])
