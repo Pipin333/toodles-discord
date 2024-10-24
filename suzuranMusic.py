@@ -89,8 +89,10 @@ class Music(commands.Cog):
             await self.play_youtube_playlist(ctx, search)
         elif "spotify.com/playlist" in search:
             await self.play_spotify_playlist(ctx, search)  # Llama a la función combinada
+        elif "spotify.com/track" in search:  # Si es una canción de Spotify
+            await self.play_spotify_track(ctx, search)
         else:
-            await self.search_and_queue_youtube(ctx, search)  # Maneja búsquedas normales
+            await self.search_and_queue_youtube(ctx, search)
 
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola."""
@@ -142,6 +144,23 @@ class Music(commands.Cog):
                     song['loaded'] = True
                     await ctx.send(f"🔸 URL cargada para: **{song['title']}**")
             await asyncio.sleep(1)  # Pausa para no sobrecargar el bot
+
+    async def play_spotify_track(self, ctx, track_url: str):
+        """Busca una canción individual de Spotify y la añade a la cola."""
+        track_id = track_url.split("/")[-1].split("?")[0]
+
+        try:
+            # Obtener información de la canción de Spotify
+            track_info = self.sp.track(track_id)
+            song_name = track_info['name']
+            artist_name = track_info['artists'][0]['name']
+            search_query = f"{song_name} {artist_name}"
+
+            # Buscar en YouTube y añadir a la cola
+            await self.search_and_queue_youtube(ctx, search_query)
+
+        except Exception as e:
+            await ctx.send(f"⚠️ Error al procesar la canción de Spotify: {e}")
 
     async def play_spotify_playlist(self, ctx, playlist_url: str):
         """Reproduce la primera canción de una playlist de Spotify y añade el resto como placeholders."""
