@@ -38,7 +38,7 @@ class RoleNameChanger(commands.Cog):
         for role_name, (role_id, role_emoji) in role_ids.items():
             if role_id in member_roles:
                 # Genera un nuevo apodo
-                new_nickname = f"「{role_emoji} 」{member.name[:30]}"  # Limita el nombre para evitar superar 32 caracteres
+                new_nickname = f"「{role_emoji} 」{member.name[:27]}"  # Limita el nombre para evitar superar 32 caracteres
                 break
 
         # Cambia el apodo del miembro si no coincide con el rol más alto
