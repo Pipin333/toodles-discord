@@ -83,16 +83,27 @@ class Music(commands.Cog):
         if not ctx.voice_client.is_connected():
             await ctx.send("No estoy conectado a un canal de voz.")
             return
-
-        # Añadir las canciones a la cola
+        
+        # Añadir las canciones a la cola dependiendo del tipo de URL o búsqueda
         if "youtube.com/playlist" in search:
             await self.play_youtube_playlist(ctx, search)
         elif "spotify.com/playlist" in search:
-            await self.play_spotify_playlist(ctx, search)  # Llama a la función combinada
-        elif "spotify.com/track" in search:  # Si es una canción de Spotify
+            await self.play_spotify_first_song(ctx, search)
+        elif "spotify.com/track" in search:
+            # Reproducción de una sola canción de Spotify
             await self.play_spotify_track(ctx, search)
-        else:
+        elif "youtube.com/watch" in search:
+            # Reproducción de una sola canción de YouTube
             await self.search_and_queue_youtube(ctx, search)
+        else:
+            # Búsqueda genérica de YouTube
+            await self.search_and_queue_youtube(ctx, search)
+
+    @commands.command(name='p')
+    async def play_short(self, ctx, *, search: str):
+        """Abreviación del comando play"""
+        await self.play(ctx, search)
+
 
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola."""
@@ -213,6 +224,61 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"⚠️ Error al procesar la playlist de Spotify: {e}")
 
+    async def play_youtube_url(self, ctx, video_url: str):
+        """Reproduce una canción desde una URL de YouTube"""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'noplaylist': True  # Asegurarse de que no trate de cargar listas de reproducción
+        }
+
+        try:
+            # Extraer información del video de YouTube
+            video_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(video_url, download=False))
+            
+            # Obtener el título y la URL para la reproducción
+            video_title = video_info.get('title')
+            video_url = video_info.get('url')
+
+            # Añadir la canción a la cola y reproducir
+            await self.queue_song(ctx, video_title, video_url)  # Modifica según cómo gestiones la cola
+            await ctx.send(f"🎶 Reproduciendo: **{video_title}**")
+        except Exception as e:
+            await ctx.send(f"⚠️ Error al cargar la canción de YouTube: {e}")
+
+    async def play_youtube_playlist(self, ctx, playlist_url: str):
+        """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano"""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
+        }
+        self.is_loading_songs = True  # Indicar que se están cargando canciones
+        try:
+            # Extraer información completa de la playlist
+            playlist_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(playlist_url, download=False))
+
+            entries = playlist_info.get('entries', [])
+            total_songs = len(entries)
+
+            await ctx.send(f"🔄 Cargando playlist de YouTube con {total_songs} canciones...")
+
+            # Añadir todas las canciones como placeholders en la cola
+            for entry in entries:
+                video_title = entry.get('title')
+                await self.queue_song(ctx, video_title)  # Añadir canciones como placeholders (sin URL)
+
+            await ctx.send(f"🎶 Se añadieron {total_songs} canciones a la cola. Las URLs se están cargando en segundo plano.")
+
+            # Cargar las URLs en segundo plano utilizando el método adecuado
+            await self.load_songs_in_background(ctx, entries)
+
+        except Exception as e:
+            await ctx.send(f"⚠️ Error al procesar la playlist de YouTube: {e}")
+
+        finally:
+            self.is_loading_songs = False  # Restablecer al finalizar
+
     async def search_and_queue_youtube(self, ctx, search_query: str):
         """Realiza una búsqueda en YouTube y añade la canción a la cola sin bloquear el hilo principal."""
         ydl_opts = {
@@ -303,44 +369,6 @@ class Music(commands.Cog):
                 return {'title': song_title, 'url': song_url, 'duration': song_duration, 'loaded': True}
         except Exception as e:
             return {'title': song_title, 'url': None, 'duration': 0, 'loaded': False}
-            
-    async def play_youtube_playlist(self, ctx, playlist_url: str):
-        """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano"""
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
-        }
-        self.is_loading_songs = True  # Indicar que se están cargando canciones
-        try:
-            # Extraer información completa de la playlist
-            playlist_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(playlist_url, download=False))
-
-            entries = playlist_info.get('entries', [])
-            total_songs = len(entries)
-
-            await ctx.send(f"🔄 Cargando playlist de YouTube con {total_songs} canciones...")
-
-            # Añadir todas las canciones como placeholders en la cola
-            for entry in entries:
-                video_title = entry.get('title')
-                await self.queue_song(ctx, video_title)  # Añadir canciones como placeholders (sin URL)
-
-            await ctx.send(f"🎶 Se añadieron {total_songs} canciones a la cola. Las URLs se están cargando en segundo plano.")
-
-            # Cargar las URLs en segundo plano utilizando el método adecuado
-            await self.load_songs_in_background(ctx, entries)
-
-        except Exception as e:
-            await ctx.send(f"⚠️ Error al procesar la playlist de YouTube: {e}")
-
-        finally:
-            self.is_loading_songs = False  # Restablecer al finalizar
-
-    @commands.command(name='p')
-    async def play_short(self, ctx, *, search: str):
-        """Abreviación del comando play"""
-        await self.play(ctx, search)
 
     @commands.command()
     async def search(self, ctx, *, query: str):
