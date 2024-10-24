@@ -389,15 +389,17 @@ class Music(commands.Cog):
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                # Realiza la búsqueda en YouTube
                 info = ydl.extract_info(f"ytsearch:{query}", download=False)
                 if 'entries' in info:
-                    search_results = info['entries'][:5]
-                    results_message = "Canciones encontradas:\n"
+                    search_results = info['entries'][:10]  # Obtén hasta 10 resultados
+                    results_message = "🎵 Canciones encontradas:\n"
+                    
                     for idx, entry in enumerate(search_results):
                         title = entry.get('title', 'Sin título')
                         duration = entry.get('duration', 0)
                         formatted_duration = self.format_duration(duration)
-                        results_message += f"{idx + 1}. {title} (Duración: {formatted_duration})\n"
+                        results_message += f"{idx + 1}. **{title}** (Duración: {formatted_duration})\n"
                     
                     await ctx.send(results_message + "Responde con el número de la canción que quieres reproducir.")
                     
@@ -415,7 +417,7 @@ class Music(commands.Cog):
                                 'duration': selected_song.get('duration', 0)  # Guardar duración
                             }
                             self.song_queue.append(song)
-                            await ctx.send(f"🎶 Canción seleccionada: {selected_song['title']} añadida a la cola.")
+                            await ctx.send(f"🎶 Canción seleccionada: **{selected_song['title']}** añadida a la cola.")
                             
                             # Verificar si el bot está en un canal de voz antes de intentar reproducir
                             if not self.voice_client or not self.voice_client.is_connected():
@@ -428,13 +430,13 @@ class Music(commands.Cog):
                                 if not self.voice_client.is_playing() and not self.current_song:
                                     await self._play_song(ctx)
                         else:
-                            await ctx.send("Número de canción inválido.")
+                            await ctx.send("Número de canción inválido. Por favor, elige un número de la lista.")
                     except asyncio.TimeoutError:
-                        await ctx.send("Se agotó el tiempo para seleccionar una canción.")
+                        await ctx.send("Se agotó el tiempo para seleccionar una canción. Inténtalo de nuevo.")
                 else:
                     await ctx.send("No se encontraron canciones.")
         except Exception as e:
-            await ctx.send(f"Error durante la búsqueda: {e}")
+            await ctx.send(f"⚠️ Error durante la búsqueda: {e}")
             print(f"Error durante la búsqueda: {e}")
 
         await self.delete_user_message(ctx)
