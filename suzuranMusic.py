@@ -270,7 +270,7 @@ class Music(commands.Cog):
             await ctx.send(f"🎶 Se añadieron {total_songs} canciones a la cola. Las URLs se están cargando en segundo plano.")
 
             # Cargar las URLs en segundo plano utilizando el método adecuado
-            await self.load_songs_in_background(ctx, entries)
+            await self.load_songs_in_background(ctx)
 
         except Exception as e:
             await ctx.send(f"⚠️ Error al procesar la playlist de YouTube: {e}")
