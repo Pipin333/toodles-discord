@@ -178,13 +178,16 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error al intentar añadir la canción: {e}")
 
-    async def queue_song(self, ctx, song_title: str):
-        """Añade una canción como placeholder a la cola (sin URL por el momento)"""
-        self.song_queue.append({'title': song_title, 'url': None, 'loaded': False})
-        await ctx.send(f"🔸 Añadido a la cola: **{song_title}** (Pendiente de cargar URL)")
+    async def queue_song(self, ctx, song_title: str, song_url: str = None):
+        """Añade una canción como placeholder a la cola (puede incluir URL)"""
+        self.song_queue.append({'title': song_title, 'url': song_url, 'loaded': song_url is not None})
+        await ctx.send(f"🔸 Añadido a la cola: **{song_title}** (Pendiente de cargar URL)" if not song_url else f"🔸 Añadido a la cola: **{song_title}** (URL cargada)")
 
         if not self.voice_client or not self.voice_client.is_playing():
             await self._play_song(ctx)
+
+            if not self.voice_client or not self.voice_client.is_playing():
+                await self._play_song(ctx)
 
     async def _play_song(self, ctx):
         """Reproduce una canción desde la cola, cargando la URL si es necesario"""
@@ -226,34 +229,34 @@ class Music(commands.Cog):
         except Exception as e:
             return {'title': song_title, 'url': None, 'loaded': False}
         
-    async def load_songs_in_background(self, ctx, songs):
-        """Carga las URLs de las canciones en segundo plano, deteniéndose si el bot se desconecta o la cola se vacía"""
-        await ctx.send("🔄 Comenzando a cargar las URLs de las canciones en segundo plano...")
+    async def play_youtube_playlist(self, ctx, playlist_url: str):
+        """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano"""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
+        }
 
-        for song in songs:
-            # Verificar si el bot sigue conectado al canal de voz
-            if not self.voice_client or not self.voice_client.is_connected():
-                await ctx.send("⚠️ El bot se desconectó del canal de voz. Se ha detenido la carga de canciones.")
-                break
-            
-            # Verificar si la cola sigue teniendo canciones
-            if len(self.song_queue) == 0:
-                await ctx.send("⚠️ La cola está vacía. Se ha detenido la carga de canciones.")
-                break
-            
-            if not song['loaded']:  # Si la canción aún no tiene su URL cargada
-                loaded_song = await self.load_song_url(song['title'])
-                song.update(loaded_song)  # Actualizar la información con la URL cargada
+        try:
+            # Extraer información completa de la playlist
+            playlist_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(playlist_url, download=False))
 
-                # Mensajes de estado para cada canción
-                if song['loaded']:
-                    await ctx.send(f"✅ URL cargada para: **{song['title']}**")
-                else:
-                    await ctx.send(f"⚠️ No se pudo cargar la URL para: **{song['title']}**")
-            
-            await asyncio.sleep(1)  # Pausa entre cargas para no sobrecargar el bot
-        
-        await ctx.send("✅ Todas las URLs de las canciones han sido cargadas.")
+            entries = playlist_info.get('entries', [])
+            total_songs = len(entries)
+
+            await ctx.send(f"🔄 Cargando playlist de YouTube con {total_songs} canciones...")
+
+            # Añadir todas las canciones como placeholders en la cola
+            for entry in entries:
+                video_title = entry.get('title')
+                await self.queue_song(ctx, video_title)  # Añadir canciones como placeholders (sin URL)
+
+            await ctx.send(f"🎶 Se añadieron {total_songs} canciones a la cola. Las URLs se están cargando en segundo plano.")
+
+            # Cargar las URLs en segundo plano
+            await self.load_songs_in_background(ctx)
+        except Exception as e:
+            await ctx.send(f"⚠️ Error al procesar la playlist de YouTube: {e}")
 
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
@@ -539,7 +542,6 @@ class Music(commands.Cog):
                 self.song_queue.clear()
                 self.current_song = None
                 print("Desconectado por inactividad.")
-
 
 async def setup(bot):
    await bot.add_cog(Music(bot))
