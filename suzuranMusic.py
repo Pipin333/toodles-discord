@@ -285,6 +285,7 @@ class Music(commands.Cog):
             'verbose': True,
             'quiet': False,
             'noplaylist': True,
+            'default_search': 'ytsearch'
         }
 
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
@@ -296,7 +297,7 @@ class Music(commands.Cog):
                     for entry in info['entries']:
                         title = entry['title']
                         url = entry['url']
-                        await self.queue_song(ctx, title, url)
+                        await self.queue_song(ctx, title)
                 else:
                     title = info['title']
                     url = info['url']
