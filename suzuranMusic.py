@@ -113,7 +113,8 @@ class Music(commands.Cog):
         """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano y reproduce la primera canción."""
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'verbose': True,
+            'quiet': False,
             'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
         }
 
@@ -228,7 +229,8 @@ class Music(commands.Cog):
         """Reproduce una canción desde una URL de YouTube"""
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'verbose': True,
+            'quiet': False,
             'noplaylist': True  # Asegurarse de que no trate de cargar listas de reproducción
         }
 
@@ -250,7 +252,8 @@ class Music(commands.Cog):
         """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano"""
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'verbose': True,
+            'quiet': False,
             'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
         }
         self.is_preloading = True  # Indicar que se están cargando canciones
@@ -283,7 +286,8 @@ class Music(commands.Cog):
         """Realiza una búsqueda en YouTube y añade la canción a la cola sin bloquear el hilo principal."""
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'verbose': True,
+            'quiet': False,
             'noplaylist': True,
         }
 
@@ -356,7 +360,8 @@ class Music(commands.Cog):
         """Carga la URL de una canción usando YouTube y extrae su duración."""
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'verbose': True,
+            'quiet': False,
             'noplaylist': True,
         }
 
@@ -376,7 +381,8 @@ class Music(commands.Cog):
 
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'verbose': True,
+            'quiet': False,
             'noplaylist': False,  # Cambia a False para procesar playlists
         }
 
@@ -524,7 +530,8 @@ class Music(commands.Cog):
         
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'verbose': True,
+            'quiet': False,
             'noplaylist': False,  # Cambia a False para procesar playlists
         }
         try:
