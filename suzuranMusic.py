@@ -286,7 +286,7 @@ class Music(commands.Cog):
             'verbose': True,
             'quiet': False,
             'noplaylist': True,
-            'default_search': 'ytsearchall'
+            'default_search': 'ytsearch'
         }
 
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
@@ -387,8 +387,8 @@ class Music(commands.Cog):
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                # Realiza la búsqueda usando ytsearchall
-                info = ydl.extract_info(f"ytsearchall:{query}", download=False)
+                # Realiza la búsqueda usando ytsearch
+                info = ydl.extract_info(f"ytsearch:{query}", download=False)
                 if 'entries' in info:
                     search_results = info['entries'][:10]  # Limitar a las primeras 10 entradas
                     results_message = "🎵 Canciones encontradas:\n"
@@ -541,7 +541,7 @@ class Music(commands.Cog):
         }
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"ytsearchall:{title}", download=False)
+                info = ydl.extract_info(f"ytsearch:{title}", download=False)
                 if info.get('entries'):
                     song_info = info['entries'][0]
                     song_url = song_info['url']
