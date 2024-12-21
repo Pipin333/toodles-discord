@@ -12,7 +12,7 @@ import yt_dlp as youtube_dl
 from discord.ext import commands, tasks
 from spotipy.oauth2 import SpotifyClientCredentials
 
-from database import setup_database, add_or_update_song, get_top_songs
+from database import setup_database, get_top_songs, add_or_update_song
 
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
 SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
@@ -187,7 +187,7 @@ class Music(commands.Cog):
                 search_query = f"{song_name} {artist}"
 
                 # Opcional: Guardar las canciones también en la base de datos
-                self.add_or_update_song(song_name, artist=artist)  # Función importada
+                self.add_song(song_name, artist=artist)  # Función importada
 
                 # Añadir la canción a la cola
                 await self.queue_song(ctx, search_query)
@@ -346,8 +346,7 @@ class Music(commands.Cog):
                         after=lambda e: self.bot.loop.create_task(self.play_next(ctx))
                     )
 
-                    add_or_update_song(song_title, url=song_url, artist=song_artist, duration=song_duration)  # Incluye parámetros explícitos
-                    add_or_update_song(song_title, song_url, artist=song_artist, duration=song_duration)
+                    self.add_song(song_title, url=song_url, artist=song_artist, duration=song_duration)  # Incluye parámetros explícitos
 
                     # Inicia la precarga de la siguiente canción
                     await self.preload_next_song(ctx)
@@ -731,7 +730,7 @@ class Music(commands.Cog):
                         duration = entry.get('duration', 0)  # En segundos
                         artist = entry.get('uploader', 'Unknown Artist')
 
-                        self.add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                        add_or_update_song(title=title, url=url, artist=artist, duration=duration)
                         added_songs += 1
 
                     await ctx.send(f"✅ Playlist procesada: {added_songs} canciones añadidas a la base de datos.")
@@ -741,7 +740,7 @@ class Music(commands.Cog):
                     duration = info.get('duration', 0)  # En segundos
                     artist = info.get('uploader', 'Unknown Artist')
 
-                    self.add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                    add_or_update_song(title=title, url=url, artist=artist, duration=duration)
                     await ctx.send(f"🎵 La canción **'{title}'** ha sido añadida a la base de datos.")
 
             elif "spotify.com" in link:
