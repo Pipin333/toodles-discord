@@ -798,7 +798,8 @@ class Music(commands.Cog):
         except Exception as e:
             # Si algo falla durante el proceso
             await ctx.send("❌ Ocurrió un error al intentar procesar el enlace y añadir la canción o playlist.")
-            print(f"Error en add_song con link '{link}': {e}")
+            await ctx.send(f"Error en add_song con link '{link}': {e}")
+            await ctx.send(f"Error en add_song con link '{link}': {type(e).__name__} - {e}")
 
 async def setup(bot):
    await bot.add_cog(Music(bot))
