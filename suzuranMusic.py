@@ -187,7 +187,7 @@ class Music(commands.Cog):
                 search_query = f"{song_name} {artist}"
 
                 # Opcional: Guardar las canciones también en la base de datos
-                add_or_update_song(song_name, artist=artist)  # Función importada
+                self.add_or_update_song(song_name, artist=artist)  # Función importada
 
                 # Añadir la canción a la cola
                 await self.queue_song(ctx, search_query)
@@ -195,8 +195,6 @@ class Music(commands.Cog):
             await ctx.send(f"🎶 Todas las canciones de la playlist han sido añadidas a la cola.")
         except Exception as e:
             await ctx.send(f"⚠️ Error: {e}")
-
-
 
     async def play_youtube_url(self, ctx, video_url: str):
         """Reproduce una canción desde una URL de YouTube"""
@@ -733,7 +731,7 @@ class Music(commands.Cog):
                         duration = entry.get('duration', 0)  # En segundos
                         artist = entry.get('uploader', 'Unknown Artist')
 
-                        add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                        self.add_or_update_song(title=title, url=url, artist=artist, duration=duration)
                         added_songs += 1
 
                     await ctx.send(f"✅ Playlist procesada: {added_songs} canciones añadidas a la base de datos.")
@@ -743,7 +741,7 @@ class Music(commands.Cog):
                     duration = info.get('duration', 0)  # En segundos
                     artist = info.get('uploader', 'Unknown Artist')
 
-                    add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                    self.add_or_update_song(title=title, url=url, artist=artist, duration=duration)
                     await ctx.send(f"🎵 La canción **'{title}'** ha sido añadida a la base de datos.")
 
             elif "spotify.com" in link:
