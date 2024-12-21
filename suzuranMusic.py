@@ -9,6 +9,8 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import os
 import concurrent.futures
 import math
+import subprocess
+from database import setup_database, add_or_update_song
 
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
 SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
@@ -27,6 +29,17 @@ class Music(commands.Cog):
 
         # Semaphore to limit concurrent tasks for loading songs
         self.semaphore = asyncio.Semaphore(3)  # Limiting to 3 concurrent tasks
+        setup_database()
+
+        try:
+            subprocess.run(
+                ["ffmpeg", "-version"],  # Comando para verificar FFmpeg
+                stdout=subprocess.DEVNULL,  # Suprime la salida estándar
+                stderr=subprocess.DEVNULL   # Suprime la salida de error
+            )
+            print("FFmpeg precargado correctamente.")
+        except FileNotFoundError:
+            print("Error: FFmpeg no está instalado o no está en el PATH.")
 
     async def delete_user_message(self, ctx):
         await asyncio.sleep(0.1)
@@ -77,13 +90,14 @@ class Music(commands.Cog):
             else:
                 await ctx.send("Debes estar en un canal de voz para usar este comando.")
                 return
+
         await self.delete_user_message(ctx)
 
-        # Verificar si el bot está conectado
-        if not ctx.voice_client.is_connected():
-            await ctx.send("No estoy conectado a un canal de voz.")
-            return
-        
+        # Precarga el proceso de FFmpeg para la primera canción
+        if not self.current_song:
+            self.voice_client.stop()
+            self.voice_client.play(discord.FFmpegPCMAudio('', options='-vn'), after=None)
+
         # Manejo de URLs
         if "youtube.com/watch" in search or "youtu.be/" in search:
             await self.search_and_queue_youtube(ctx, search)
@@ -95,6 +109,7 @@ class Music(commands.Cog):
             await self.play_youtube_playlist(ctx, search)
         else:
             await self.search_and_queue_youtube(ctx, search)  # Búsqueda genérica
+
 
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
@@ -112,6 +127,7 @@ class Music(commands.Cog):
             'verbose': True,
             'quiet': False,
             'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
+            'cachedir': False
         }
 
         try:
@@ -228,7 +244,8 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True  # Asegurarse de que no trate de cargar listas de reproducción
+            'noplaylist': True,
+            'cachedir': False  # Asegurarse de que no trate de cargar listas de reproducción
         }
 
         try:
@@ -251,7 +268,8 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
+            'noplaylist': False,
+            'cachedir': False  # Procesar toda la playlist, no solo el primer video
         }
         self.is_preloading = True  # Indicar que se están cargando canciones
         try:
@@ -286,6 +304,7 @@ class Music(commands.Cog):
             'verbose': True,
             'quiet': False,
             'noplaylist': True,
+            'cachedir': False,
             'default_search': 'ytsearch'
         }
 
@@ -316,11 +335,11 @@ class Music(commands.Cog):
             await self._play_song(ctx)
 
     async def _play_song(self, ctx):
-        """Reproduce una canción desde la cola, cargando la URL si es necesario"""
+        """Reproduce una canción desde la cola y la registra en la base de datos."""
         if self.song_queue:
             song = self.song_queue.pop(0)
 
-            # Si la canción no está cargada (URL es None), la cargamos ahora
+        # Si la canción no está cargada, cargarla ahora
             if not song['loaded']:
                 song = await self.load_song_url(song['title'])
 
@@ -330,8 +349,18 @@ class Music(commands.Cog):
             self.start_time = time.time()
 
             if self.voice_client.is_connected():
-                source = discord.FFmpegPCMAudio(song_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', options='-vn')
-                self.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
+                source = discord.FFmpegPCMAudio(
+                    song_url, 
+                    before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 
+                    options='-vn'
+                )
+                self.voice_client.play(
+                    source, 
+                    after=lambda e: self.bot.loop.create_task(self.play_next(ctx))
+                )
+
+                # Agregar la canción a la base de datos
+                add_or_update_song(song_title, song_url, duration=song['duration'])
 
                 # Inicia la precarga de la siguiente canción
                 await self.preload_next_song(ctx)
@@ -364,6 +393,7 @@ class Music(commands.Cog):
             'verbose': True,
             'quiet': False,
             'noplaylist': True,
+            'cachedir': False
         }
 
         try:
@@ -383,6 +413,7 @@ class Music(commands.Cog):
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,  # Evita mostrar mensajes verbosos
+            'cachedir': False
         }
 
         try:
@@ -538,6 +569,7 @@ class Music(commands.Cog):
             'verbose': True,
             'quiet': False,
             'noplaylist': False,  # Cambia a False para procesar playlists
+            'cachedir': False
         }
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
@@ -640,6 +672,21 @@ class Music(commands.Cog):
         else:
             await ctx.send("No se está reproduciendo ninguna canción.")
         await self.delete_user_message(ctx)
+
+    @commands.command(name="historial")
+    async def historial(self, ctx):
+        """Muestra las canciones más reproducidas."""
+        from database import get_top_songs
+
+        top_songs = get_top_songs(5)
+        if top_songs:
+            message = "**Top 5 canciones más reproducidas:**\n"
+            for idx, (title, count) in enumerate(top_songs, start=1):
+                message += f"{idx}. {title} - {count} reproducciones\n"
+            await ctx.send(message)
+        else:
+            await ctx.send("No hay canciones en el historial.")
+
 
     @commands.command()
     async def leave(self, ctx):
