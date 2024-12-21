@@ -721,5 +721,86 @@ class Music(commands.Cog):
                 self.current_song = None
                 print("Desconectado por inactividad.")
 
+    @commands.command(name="canciondb", help="Añade una canción o una playlist a la base de datos.")
+    async def add_song(self, ctx, link: str):
+        """
+        Comando para agregar canciones individuales o playlists a la base de datos.
+
+        Args:
+          ctx: Contexto del comando.
+          link: Enlace a la canción o playlist.
+
+        Returns:
+          Mensaje indicando éxito o error.
+        """
+        try:
+            if "youtube.com" in link or "youtu.be" in link:
+                # Detectar y manejar playlists de YouTube
+                with youtube_dl.YoutubeDL({'quiet': True, 'extract_flat': 'playlist'}) as ydl:
+                    info = ydl.extract_info(link, download=False)
+
+                if 'entries' in info:  # Es una playlist
+                    # Procesar todas las canciones de la playlist
+                    await ctx.send(f"🎵 Procesando playlist **{info['title']}** con {len(info['entries'])} canciones...")
+                    added_songs = 0
+                    for entry in info['entries']:
+                        title = entry.get('title', 'Unknown Title')
+                        url = entry.get('url', link)
+                        duration = entry.get('duration', 0)  # En segundos
+                        artist = entry.get('uploader', 'Unknown Artist')
+
+                        add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                        added_songs += 1
+
+                    await ctx.send(f"✅ Playlist procesada: {added_songs} canciones añadidas a la base de datos.")
+                else:  # Es una canción individual
+                    title = info.get('title', 'Unknown Title')
+                    url = info.get('webpage_url', link)
+                    duration = info.get('duration', 0)  # En segundos
+                    artist = info.get('uploader', 'Unknown Artist')
+
+                    add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                    await ctx.send(f"🎵 La canción **'{title}'** ha sido añadida a la base de datos.")
+
+            elif "spotify.com" in link:
+                # Detectar y manejar playlists de Spotify
+                if "playlist" in link:
+                    # Extraer información de la playlist
+                    playlist_info = self.sp.playlist(link)
+                    await ctx.send(
+                        f"🎵 Procesando playlist **{playlist_info['name']}** con {len(playlist_info['tracks']['items'])} canciones...")
+
+                    added_songs = 0
+                    for item in playlist_info['tracks']['items']:
+                        track = item['track']
+                        title = track['name']
+                        url = track['external_urls']['spotify']
+                        duration = track['duration_ms'] // 1000
+                        artist = ", ".join([artist['name'] for artist in track['artists']])
+
+                        add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                        added_songs += 1
+
+                    await ctx.send(f"✅ Playlist procesada: {added_songs} canciones añadidas a la base de datos.")
+                else:  # Es una canción individual
+                    track_info = self.sp.track(link)
+                    title = track_info['name']
+                    url = link
+                    duration = track_info['duration_ms'] // 1000
+                    artist = ", ".join([artist['name'] for artist in track_info['artists']])
+
+                    add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                    await ctx.send(f"🎵 La canción **'{title}'** ha sido añadida a la base de datos.")
+
+            else:
+                # No es un enlace reconocido
+                await ctx.send(
+                    "❌ No se reconoce el tipo de enlace proporcionado. Solo se soportan YouTube y Spotify por ahora.")
+
+        except Exception as e:
+            # Si algo falla durante el proceso
+            await ctx.send("❌ Ocurrió un error al intentar procesar el enlace y añadir la canción o playlist.")
+            print(f"Error en add_song con link '{link}': {e}")
+
 async def setup(bot):
    await bot.add_cog(Music(bot))
