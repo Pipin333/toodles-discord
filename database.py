@@ -34,20 +34,23 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 # Función para agregar o actualizar una canción
-def add_or_update_song(title, url=None, artist=None, duration=0):
-    """Agrega o actualiza una canción en la base de datos de PostgreSQL."""
-    # Verificar si la canción ya existe
-    existing_song = session.query(Song).filter(Song.title == title).first()
-
+def add_or_update_song(self, title, url=None, artist=None, duration=0):
+    # Verificar si la canción ya está en la base de datos
+    existing_song = session.query(Song).filter_by(title=title, artist=artist).first()
     if existing_song:
-        # Incrementar el contador si ya existe
-        existing_song.played_count += 1
-        session.commit()
-    else:
-        # Agregar una nueva canción
-        new_song = Song(title=title, url=url, artist=artist, duration=duration)
-        session.add(new_song)
-        session.commit()
+        return existing_song  # La canción ya existe, no hacer nada más
+
+    # Si no existe, crear una nueva entrada
+    new_song = Song(
+        title=title,
+        url=url,
+        artist=artist,
+        duration=duration
+    )
+    session.add(new_song)
+    session.commit()
+    return new_song
+
 
 def get_top_songs(limit=10):
     """Obtiene las canciones más reproducidas."""
