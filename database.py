@@ -1,46 +1,53 @@
-import sqlite3
+import os
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-DB_FILE = "music_bot.db"
+# URL de la base de datos desde las variables de entorno (esto lo maneja Railway)
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://usuario:contraseña@localhost:5432/nombre_basedatos')
 
-def setup_database():
-    """Crea la base de datos y las tablas si no existen."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+# Crear el motor de la base de datos PostgreSQL
+engine = create_engine(DATABASE_URL, echo=True)
 
-    # Crear tabla de canciones
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS songs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            url TEXT,
-            artist TEXT,
-            duration INTEGER,
-            played_count INTEGER DEFAULT 0
-        )
-    """)
-    conn.commit()
-    conn.close()
+# Crear la base para los modelos
+Base = declarative_base()
 
+# Definir el modelo para la tabla `songs`
+class Song(Base):
+    __tablename__ = 'songs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String, nullable=False)
+    url = Column(String)
+    artist = Column(String)
+    duration = Column(Integer)
+    played_count = Column(Integer, default=0)
+
+    def __repr__(self):
+        return f"<Song(id={self.id}, title={self.title}, artist={self.artist}, played_count={self.played_count})>"
+
+# Crear las tablas en la base de datos si no existen
+Base.metadata.create_all(engine)
+
+# Crear una sesión para interactuar con la base de datos
+Session = sessionmaker(bind=engine)
+session = Session()
+
+# Función para agregar o actualizar una canción
 def add_or_update_song(title, url=None, artist=None, duration=0):
-    """Agrega o actualiza una canción en la base de datos."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
+    """Agrega o actualiza una canción en la base de datos de PostgreSQL."""
     # Verificar si la canción ya existe
-    cursor.execute("SELECT id, played_count FROM songs WHERE title = ?", (title,))
-    result = cursor.fetchone()
+    existing_song = session.query(Song).filter(Song.title == title).first()
 
-    if result:
+    if existing_song:
         # Incrementar el contador si ya existe
-        song_id, played_count = result
-        cursor.execute("UPDATE songs SET played_count = ? WHERE id = ?", (played_count + 1, song_id))
+        existing_song.played_count += 1
+        session.commit()
     else:
         # Agregar una nueva canción
-        cursor.execute("INSERT INTO songs (title, url, artist, duration) VALUES (?, ?, ?, ?)",
-                       (title, url, artist, duration))
-
-    conn.commit()
-    conn.close()
+        new_song = Song(title=title, url=url, artist=artist, duration=duration)
+        session.add(new_song)
+        session.commit()
 
 def get_top_songs(limit=10):
     """Obtiene las canciones más reproducidas."""
@@ -51,3 +58,9 @@ def get_top_songs(limit=10):
     top_songs = cursor.fetchall()
     conn.close()
     return top_songs
+
+# Función para configurar la base de datos (aunque ya se crea al inicio)
+def setup_database():
+    """Crea las tablas si no existen."""
+    Base.metadata.create_all(engine)
+    print("Tablas creadas si no existían.")

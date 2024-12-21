@@ -339,35 +339,41 @@ class Music(commands.Cog):
         if self.song_queue:
             song = self.song_queue.pop(0)
 
-        # Si la canción no está cargada, cargarla ahora
+            # Si la canción no está cargada, cargarla ahora
             if not song['loaded']:
                 song = await self.load_song_url(song['title'])
 
             song_url = song['url']
             song_title = song['title']
+            song_artist = song.get('artist', 'Desconocido')  # Suponiendo que hay un campo 'artist'
+            song_duration = song['duration']
             self.current_song = song  # Actualiza la canción actual
             self.start_time = time.time()
 
-            if self.voice_client.is_connected():
-                source = discord.FFmpegPCMAudio(
-                    song_url, 
-                    before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 
-                    options='-vn'
-                )
-                self.voice_client.play(
-                    source, 
-                    after=lambda e: self.bot.loop.create_task(self.play_next(ctx))
-                )
+            try:
+                if self.voice_client.is_connected():
+                    source = discord.FFmpegPCMAudio(
+                        song_url, 
+                        before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 
+                        options='-vn'
+                    )
+                    self.voice_client.play(
+                        source, 
+                        after=lambda e: self.bot.loop.create_task(self.play_next(ctx))
+                    )
 
-                # Agregar la canción a la base de datos
-                add_or_update_song(song_title, song_url, duration=song['duration'])
+                    # Agregar la canción a la base de datos
+                    add_or_update_song(song_title, song_url, artist=song_artist, duration=song_duration)
 
-                # Inicia la precarga de la siguiente canción
-                await self.preload_next_song(ctx)
+                    # Inicia la precarga de la siguiente canción
+                    await self.preload_next_song(ctx)
 
-                await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**")
-            else:
-                await ctx.send("⚠️ No estoy conectado a un canal de voz.")
+                    await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**")
+                else:
+                    await ctx.send("⚠️ No estoy conectado a un canal de voz.")
+            except Exception as e:
+                print(f"Error al reproducir la canción: {e}")
+                await ctx.send("⚠️ Hubo un error al intentar reproducir la canción.")
         else:
             await ctx.send("⚠️ No hay más canciones en la cola.")
 

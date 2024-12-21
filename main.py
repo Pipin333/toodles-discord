@@ -45,8 +45,8 @@ async def main():
     try:
         await bot.load_extension('suzuranMusic')
         print("Cog 'suzuranMusic' cargado correctamente.")
-        await bot.load_extension('RoleChanger')
-        print("Cog 'RoleChanger' cargado correctamente.")
+      #  await bot.load_extension('RoleChanger')
+      # print("Cog 'RoleChanger' cargado correctamente.")
     except Exception as e:
         print(f"Error al cargar cogs: {e}")
 
