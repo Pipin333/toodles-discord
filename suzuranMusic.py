@@ -12,7 +12,7 @@ import yt_dlp as youtube_dl
 from discord.ext import commands, tasks
 from spotipy.oauth2 import SpotifyClientCredentials
 
-from database import setup_database, add_or_update_song, get_all_songs, increment_play_count, get_top_songs
+from database import setup_database, add_or_update_song
 
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
 SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
@@ -23,21 +23,19 @@ class Music(commands.Cog):
         self.bot = bot
         self.song_queue = []  # Lista que almacenará las canciones en cola
         self.current_song = None
-        self.preload_top_songs()  # Preloading popular songs into cache
         self.voice_client = None
         self.check_inactivity.start()
         self.start_time = None
-        self.cache = {'songs': {}}
+        self.cache = {}
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
-        self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
+        self.sp = spotipy.Spotify(
+            auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
         self.is_preloading = False  # Indicador para controlar la precarga
         self.is_preloading = False  # Indicador para controlar la precarga
         self.start_time = None  # Inicializa el tiempo de reproducción
         self.cache = {}  # Diccionario para caché
         # Semaphore to limit concurrent tasks for loading songs
         self.semaphore = asyncio.Semaphore(3)  # Limiting to 3 concurrent tasks
-        self.top_songs_cache = {}  # Cache for popular songs from the database
-        self.load_songs_from_database()
         setup_database()
         print("Cog 'Music' inicializado correctamente.")
 
@@ -45,7 +43,7 @@ class Music(commands.Cog):
             subprocess.run(
                 ["ffmpeg", "-version"],  # Comando para verificar FFmpeg
                 stdout=subprocess.DEVNULL,  # Suprime la salida estándar
-                stderr=subprocess.DEVNULL   # Suprime la salida de error
+                stderr=subprocess.DEVNULL  # Suprime la salida de error
             )
             print("FFmpeg precargado correctamente.")
         except FileNotFoundError:
@@ -59,7 +57,7 @@ class Music(commands.Cog):
             await ctx.send("No tengo permisos para borrar mensajes.")
         except discord.HTTPException as e:
             await ctx.send(f"Error al borrar el mensaje: {e}")
-    
+
     def format_duration(self, duration):
         """Convierte una duración en segundos a un formato legible (HH:MM:SS)"""
         hours, remainder = divmod(duration, 3600)
@@ -154,26 +152,9 @@ class Music(commands.Cog):
                     await ctx.send(f"🔸 URL cargada para: **{song['title']}**")
             await asyncio.sleep(1)  # Pausa para no sobrecargar el bot
 
-    def fetch_song_from_cache_or_db(self, title: str):
-        """Fetch a song from cache or database based on the title."""
-        """Fetch a song from cache or database based on the title."""
-        if title in self.cache['songs']:
-            return self.cache['songs'][title]
-        else:
-            # Assuming get_all_songs returns a list of dictionaries with keys 'title', 'url', and 'duration'
-            db_songs = get_all_songs()
-            for song in db_songs:
-                self.cache['songs'][song['title']] = song
-                if song['title'] == title:
-                    return song
-            return None
     async def play_spotify_track(self, ctx, track_url: str):
         """Convierte una canción de Spotify en una búsqueda de YouTube y la añade a la cola."""
         track_id = track_url.split("/")[-1].split("?")[0]
-        song = self.fetch_song_from_cache_or_db(track_id)
-        if song:
-            await self.queue_song(ctx, song["title"], song["url"], song.get("duration", 0))
-            return
 
         try:
             # Obtener información de la canción de Spotify
@@ -183,13 +164,7 @@ class Music(commands.Cog):
             search_query = f"{song_name} {artist_name}"
 
             # Buscar en YouTube
-            # Check if song exists in cache or database
-            song = self.fetch_song_from_cache_or_db(search_query)
-            if song:
-                self.song_queue.append(song)
-                await ctx.send(f"🎶 Canción encontrada en caché/base de datos: {song['title']}")
-            else:
-                await self.search_and_queue_youtube(ctx, search_query)
+            await self.search_and_queue_youtube(ctx, search_query)
 
         except Exception as e:
             await ctx.send(f"⚠️ Error al buscar la canción en Spotify: {e}")
@@ -217,13 +192,7 @@ class Music(commands.Cog):
 
                 # Convertir en búsqueda y añadir a la cola
                 await self.search_and_queue_youtube(ctx, f"{song_name} {artist}")
-                query = f"{song_name} {artist}"
-                song = self.fetch_song_from_cache_or_db(query)
-                if song:
-                    self.song_queue.append(song)
-                    await ctx.send(f"🎶 Canción encontrada en caché/base de datos: {song['title']}")
-                else:
-                    await self.search_and_queue_youtube(ctx, query)
+
             await ctx.send("🎶 Todas las canciones de la playlist han sido añadidas a la cola.")
         except Exception as e:
             await ctx.send(f"⚠️ Error en play_spotify_playlist: {e}")
@@ -240,8 +209,9 @@ class Music(commands.Cog):
 
         try:
             # Extraer información del video de YouTube
-            video_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(video_url, download=False))  # Extrae info en hilo separado
-            
+            video_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(video_url,
+                                                                                                     download=False))  # Extrae info en hilo separado
+
             # Obtener el título y la URL para la reproducción
             video_title = video_info.get('title')
             video_url = video_info.get('url')
@@ -299,12 +269,7 @@ class Music(commands.Cog):
                 song_url = entry.get('url', None)
                 if not song_url:
                     continue
-                song = self.fetch_song_from_cache_or_db(song_url)
-                if song:
-                    self.song_queue.append(song)
-                    await ctx.send(f"🎶 Canción encontrada en caché/base de datos: {song['title']}")
-                else:
-                    await self.queue_song(ctx, song_url)
+
                 # Usar la función queue_song o un equivalente para agregar canciones a la cola
                 await self.queue_song(ctx, song_url)
 
@@ -332,7 +297,8 @@ class Music(commands.Cog):
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             try:
                 # Aquí utilizamos la variable `search` directamente
-                info = ydl.extract_info(search, download=False)  # Cambia download=True a False para obtener solo la información
+                info = ydl.extract_info(search,
+                                        download=False)  # Cambia download=True a False para obtener solo la información
                 if 'entries' in info:
                     # Si hay múltiples entradas (como en listas de reproducción)
                     for entry in info['entries']:
@@ -346,14 +312,13 @@ class Music(commands.Cog):
             except Exception as e:
                 await ctx.send(f"Ocurrió un error al buscar la canción: {str(e)}")
 
-    async def queue_song(self, ctx, song_title: str, url: str = None, duration: int = 0):
+    async def queue_song(self, ctx, song_title: str):
         """Añade una canción como placeholder a la cola (sin URL por el momento)"""
-        song = {'title': song_title, 'url': url, 'loaded': url is not None, 'duration': duration}
-        self.cache['songs'][song_title] = song  # Cache song to avoid future lookups
+        song = {'title': song_title, 'url': None, 'loaded': False, 'duration': 0}  # Incluye duración aquí
         self.song_queue.append(song)
         await ctx.send(f"🔸 Añadido a la cola: **{song_title}** (Pendiente de carga de URL)")
 
-        if not self.voice_client or not self.voice_client.is_playing() and song.get('loaded', False):
+        if not self.voice_client or not self.voice_client.is_playing():
             await self._play_song(ctx)
 
     async def _play_song(self, ctx):
@@ -376,7 +341,6 @@ class Music(commands.Cog):
             self.current_song = song
             self.start_time = time.time()
 
-            increment_play_count(self.current_song['title'])  # Updating play count in the database
             try:
                 if self.voice_client and self.voice_client.is_connected():
                     source = discord.FFmpegPCMAudio(
@@ -409,7 +373,6 @@ class Music(commands.Cog):
 
     async def preload_next_song(self):
         """Carga la URL de la próxima canción en la cola, asegurándose de que solo una canción se cargue a la vez."""
-        print("[INFO] Attempting to preload next song.")
         if self.is_preloading:
             return  # Si ya se está precargando, salimos de la función
 
@@ -423,7 +386,7 @@ class Music(commands.Cog):
 
         self.is_preloading = False  # Reiniciamos el indicador de precarga
 
-    async def load_song_url(self, song_title, update_cache=True):
+    async def load_song_url(self, song_title):
         """Carga la URL de una canción usando YouTube y extrae su duración."""
         ydl_opts = {
             'format': 'bestaudio/best',
@@ -434,23 +397,21 @@ class Music(commands.Cog):
         }
 
         try:
-            info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{song_title}", download=False))
+            info = await asyncio.to_thread(
+                lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{song_title}", download=False))
             if info.get('entries'):
                 song_info = info['entries'][0]
                 song_url = song_info['url']
                 song_duration = song_info.get('duration', 0)  # Obtener duración de la canción
-                song = {'title': song_title, 'url': song_url, 'duration': song_duration, 'loaded': True}
-                if update_cache:
-                    self.cache['songs'][song_title] = song
-                return song
+                return {'title': song_title, 'url': song_url, 'duration': song_duration, 'loaded': True}
         except Exception as e:
-            return {'title': song_title, 'url': None, 'duration': 0, 'loaded': False}
+            print(f"Error al cargar la URL de la canción: {e}")
             return {'title': song_title, 'url': None, 'duration': 0, 'loaded': False}
 
     @commands.command()
     async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias."""
-        
+
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,  # Evita mostrar mensajes verbosos
@@ -464,7 +425,7 @@ class Music(commands.Cog):
                 if 'entries' in info:
                     search_results = info['entries'][:10]  # Limitar a las primeras 10 entradas
                     results_message = "🎵 Canciones encontradas:\n"
-                    
+
                     for idx, entry in enumerate(search_results):
                         title = entry.get('title', 'Sin título')
                         duration = entry.get('duration', 0)
@@ -497,7 +458,8 @@ class Music(commands.Cog):
                                     channel = ctx.author.voice.channel
                                     self.voice_client = await channel.connect()
                                 else:
-                                    await ctx.send("No estoy en un canal de voz. Conéctame a un canal y vuelve a intentar.")
+                                    await ctx.send(
+                                        "No estoy en un canal de voz. Conéctame a un canal y vuelve a intentar.")
                             else:
                                 if not self.voice_client.is_playing() and not self.current_song:
                                     await self._play_song(ctx)
@@ -526,19 +488,19 @@ class Music(commands.Cog):
                 formatted_total_duration = self.format_duration(total_duration)
 
                 # Enviar el mensaje con el estado actual de la canción
-                await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**\n⏳ Tiempo transcurrido: {formatted_elapsed_time}/{formatted_total_duration}")
+                await ctx.send(
+                    f"🎶 Ahora reproduciendo: **{song_title}**\n⏳ Tiempo transcurrido: {formatted_elapsed_time}/{formatted_total_duration}")
                 await asyncio.sleep(1)  # Espera un segundo antes de actualizar nuevamente
 
         else:
             await ctx.send("⚠️ No hay ninguna canción reproduciéndose en este momento.")
-
 
     @commands.command(name='queue', aliases=['q'])
     async def queue(self, ctx):
         """Muestra la cola de canciones en páginas de 15 elementos"""
         items_per_page = 15
         total_songs = len(self.song_queue)
-        
+
         if total_songs == 0:
             await ctx.send("La cola de canciones está vacía.")
             return
@@ -551,11 +513,11 @@ class Music(commands.Cog):
             start_idx = (page_num - 1) * items_per_page
             end_idx = min(start_idx + items_per_page, total_songs)
             queue_message = f"**Cola de canciones - Página {page_num}/{total_pages}:**\n"
-            
+
             for idx, song in enumerate(self.song_queue[start_idx:end_idx], start=start_idx + 1):
                 song_status = "Cargada" if song.get('loaded', False) else "Pendiente de cargar"
                 queue_message += f"{idx}. **{song['title']}** ({song_status})\n"
-            
+
             return queue_message
 
         # Mostrar la primera página
@@ -604,7 +566,7 @@ class Music(commands.Cog):
         if position < 1:
             await ctx.send("La posición debe ser mayor que 0.")
             return
-        
+
         ydl_opts = {
             'format': 'bestaudio/best',
             'verbose': True,
@@ -620,7 +582,7 @@ class Music(commands.Cog):
                     song_url = song_info['url']
                     song_title = song_info['title']
                     song_duration = song_info.get('duration', 0)
-                    
+
                     song = {'url': song_url, 'title': song_title, 'duration': song_duration}
                     self.song_queue.insert(position - 1, song)
                     await ctx.send(f"🎶 Canción añadida a la posición {position}: **{song_title}**")
@@ -634,8 +596,8 @@ class Music(commands.Cog):
     @commands.command()
     async def move(self, ctx, current_index: int, new_index: int):
         """Mueve una canción a una nueva posición en la cola y la carga si se mueve al índice 1"""
-        song_title = self.current_song['title'] 
-        
+        song_title = self.current_song['title']
+
         if current_index < 1 or new_index < 1:
             await ctx.send("⚠️ No se encontraron canciones.")
             return
@@ -646,7 +608,7 @@ class Music(commands.Cog):
 
         song = self.song_queue.pop(current_index - 1)
         self.song_queue.insert(new_index - 1, song)
-        
+
         await ctx.send(f"🎶 Canción {song_title}movida de la posición {current_index} a la posición {new_index}.")
         await self.delete_user_message(ctx)
 
@@ -728,7 +690,6 @@ class Music(commands.Cog):
         else:
             await ctx.send("No hay canciones en el historial.")
 
-
     @commands.command()
     async def leave(self, ctx):
         """Desconecta al bot del canal de voz"""
@@ -807,11 +768,7 @@ class Music(commands.Cog):
                 # Confirmar cuántas canciones se añadieron
                 await ctx.send(
                     f"✅ Se añadieron un total de {total_songs} canciones de la playlist a la base de datos correctamente.")
-            elif "youtube.com" in link or "youtu.be" in link:
-                cached_song = self.fetch_song_from_cache_or_db(link)
-                if cached_song:
-                    await ctx.send(f"🎶 Canción encontrada en la base de datos: **{cached_song['title']}**")
-                    return
+
             elif "youtube.com" in link or "youtu.be" in link:
                 # Aquí puede ir la lógica para manejar enlaces de YouTube si es necesario
                 await ctx.send(
@@ -822,23 +779,6 @@ class Music(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ Ocurrió un error en `add_song`: {type(e).__name__} - {e}")
 
-    def load_songs_from_database(self):
-        """Load all songs from the database into cache."""
-        self.preload_top_songs()  # Ensure top songs are also preloaded at initialization
-        songs = get_all_songs()
-        for song in songs:
-            self.cache['songs'][song['title']] = song
-        print("[INFO] Songs loaded into cache from the database.")
 
-    def preload_top_songs(self):
-        """Preloads popular songs into cache."""
-        try:
-            top_songs = get_top_songs(limit=5, offset=0)  # Default preload limit is 5 songs
-            for song in top_songs:
-                self.cache['songs'][song['title']] = song
-                self.top_songs_cache[song['title']] = song
-            print("[INFO] Top songs preloaded into cache.")
-        except Exception as e:
-            print("[WARN] Failed to preload top songs: ", e)
 async def setup(bot):
-   await bot.add_cog(Music(bot))
+    await bot.add_cog(Music(bot))
