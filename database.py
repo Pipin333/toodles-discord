@@ -51,12 +51,7 @@ def add_or_update_song(title, url=None, artist=None, duration=0):
 
 def get_top_songs(limit=10):
     """Obtiene las canciones más reproducidas."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT title, played_count FROM songs ORDER BY played_count DESC LIMIT ?", (limit,))
-    top_songs = cursor.fetchall()
-    conn.close()
+    top_songs = session.query(Song.title, Song.played_count).order_by(Song.played_count.desc()).limit(limit).all()
     return top_songs
 
 # Función para configurar la base de datos (aunque ya se crea al inicio)
