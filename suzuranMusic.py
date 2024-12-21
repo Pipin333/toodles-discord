@@ -1,15 +1,17 @@
-import discord
-import random
-from discord.ext import commands, tasks
-import yt_dlp as youtube_dl
 import asyncio
-import time
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-import os
 import concurrent.futures
 import math
+import os
+import random
 import subprocess
+import time
+
+import discord
+import spotipy
+import yt_dlp as youtube_dl
+from discord.ext import commands, tasks
+from spotipy.oauth2 import SpotifyClientCredentials
+
 from database import setup_database, add_or_update_song
 
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
@@ -30,6 +32,7 @@ class Music(commands.Cog):
         # Semaphore to limit concurrent tasks for loading songs
         self.semaphore = asyncio.Semaphore(3)  # Limiting to 3 concurrent tasks
         setup_database()
+        print("Cog 'Music' inicializado correctamente.")
 
         try:
             subprocess.run(

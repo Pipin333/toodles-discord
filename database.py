@@ -4,7 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # URL de la base de datos desde las variables de entorno (esto lo maneja Railway)
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://usuario:contraseña@localhost:5432/nombre_basedatos')
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Crear el motor de la base de datos PostgreSQL
 engine = create_engine(DATABASE_URL, echo=True)
