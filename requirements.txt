@@ -4,3 +4,5 @@ aiohttp
 pynacl
 asyncio
 spotipy
+psycopg2-binary
+sqlalchemy
