@@ -12,7 +12,7 @@ import yt_dlp as youtube_dl
 from discord.ext import commands, tasks
 from spotipy.oauth2 import SpotifyClientCredentials
 
-from database import setup_database, get_top_songs, add_or_update_song
+from database import setup_database, add_or_update_song
 
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
 SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
@@ -346,10 +346,10 @@ class Music(commands.Cog):
                         after=lambda e: self.bot.loop.create_task(self.play_next(ctx))
                     )
 
-                    self.add_song(song_title, url=song_url, artist=song_artist, duration=song_duration)  # Incluye parámetros explícitos
+                    await self.add_song(song_title, url=song_url, artist=song_artist, duration=song_duration)  # Incluye parámetros explícitos
 
                     # Inicia la precarga de la siguiente canción
-                    await self.preload_next_song(ctx)
+                    await self.preload_next_song()
 
                     await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**")
                 else:
@@ -360,7 +360,7 @@ class Music(commands.Cog):
         else:
             await ctx.send("⚠️ No hay más canciones en la cola.")
 
-    async def preload_next_song(self, ctx):
+    async def preload_next_song(self):
         """Carga la URL de la próxima canción en la cola, asegurándose de que solo una canción se cargue a la vez."""
         if self.is_preloading:
             return  # Si ya se está precargando, salimos de la función
@@ -601,7 +601,7 @@ class Music(commands.Cog):
 
         # Si la canción se mueve al índice 1, la carga
         if new_index == 1:
-            await self.preload_next_song(ctx)  # Cargar la canción en el índice 1
+            await self.preload_next_song()  # Cargar la canción en el índice 1
 
     @commands.command()
     async def remove(self, ctx, index: int):
@@ -730,7 +730,7 @@ class Music(commands.Cog):
                         duration = entry.get('duration', 0)  # En segundos
                         artist = entry.get('uploader', 'Unknown Artist')
 
-                        add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                        add_or_update_song(self, title=title, url=url, artist=artist, duration=duration)
                         added_songs += 1
 
                     await ctx.send(f"✅ Playlist procesada: {added_songs} canciones añadidas a la base de datos.")
@@ -740,14 +740,14 @@ class Music(commands.Cog):
                     duration = info.get('duration', 0)  # En segundos
                     artist = info.get('uploader', 'Unknown Artist')
 
-                    add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                    add_or_update_song(self, title=title, url=url, artist=artist, duration=duration)
                     await ctx.send(f"🎵 La canción **'{title}'** ha sido añadida a la base de datos.")
 
             elif "spotify.com" in link:
                 # Detectar y manejar playlists de Spotify
                 if "playlist" in link:
                     # Extraer información de la playlist
-                    playlist_info = self.sp.playlist(link)
+                    playlist_info = self.sp.playlist(self,  link)
 
                     await ctx.send(
                         f"🎵 Procesando playlist **{playlist_info['name']}** con {playlist_info['tracks']['total']} canciones...")
@@ -768,7 +768,7 @@ class Music(commands.Cog):
                             duration = track['duration_ms'] // 1000
                             artist = ", ".join([artist['name'] for artist in track['artists']])
 
-                            add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                            add_or_update_song(self, title=title, url=url, artist=artist, duration=duration)
                             added_songs += 1
 
                         await ctx.send(
@@ -784,7 +784,7 @@ class Music(commands.Cog):
                     duration = track_info['duration_ms'] // 1000
                     artist = ", ".join([artist['name'] for artist in track_info['artists']])
 
-                    add_or_update_song(title=title, url=url, artist=artist, duration=duration)
+                    add_or_update_song(self, title=title, url=url, artist=artist, duration=duration)
                     await ctx.send(f"🎵 La canción **'{title}'** ha sido añadida a la base de datos.")
 
             else:
