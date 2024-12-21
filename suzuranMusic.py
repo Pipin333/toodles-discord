@@ -17,6 +17,7 @@ from database import setup_database, add_or_update_song
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
 SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
 
+
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -174,7 +175,7 @@ class Music(commands.Cog):
                 tracks = self.cache[playlist_id]['data']
                 await ctx.send("✅ Playlist cargada desde la caché.")
             else:
-                results = self.sp.playlist_items(playlist_id, limit=100, offset=0)
+                results = self.sp.playlist_items(playlist_id, limit=100, offset=0,additional_types=['track'])
                 tracks = results.get('items', [])
                 self.cache[playlist_id] = {'data': tracks, 'timestamp': time.time()}
                 await ctx.send("🔄 Playlist cargada desde Spotify.")
@@ -769,7 +770,7 @@ class Music(commands.Cog):
                     # Procesar la playlist en bloques de 99 canciones
                     for offset in range(0, total_tracks, 99):
                         # Obtener un bloque de máximo 99 canciones
-                        tracks_chunk = self.sp.playlist_items(link, offset=offset, limit=99)['items']
+                        tracks_chunk = self.sp.playlist_items(link, offset=offset, limit=99, additional_types=['track'])['items']
 
                         for item in tracks_chunk:
                             track = item['track']
