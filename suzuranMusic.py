@@ -152,21 +152,21 @@ class Music(commands.Cog):
             await asyncio.sleep(1)  # Pausa para no sobrecargar el bot
 
     async def play_spotify_track(self, ctx, track_url: str):
-        """Busca una canción individual de Spotify y la añade a la cola."""
+        """Convierte una canción de Spotify en una búsqueda de YouTube y la añade a la cola."""
         track_id = track_url.split("/")[-1].split("?")[0]
 
         try:
             # Obtener información de la canción de Spotify
             track_info = self.sp.track(track_id)
-            song_name = track_info.get('name', 'Canción desconocida')
+            song_name = track_info['name']
             artist_name = track_info['artists'][0]['name']
             search_query = f"{song_name} {artist_name}"
 
-            # Buscar en YouTube y añadir a la cola
+            # Buscar en YouTube
             await self.search_and_queue_youtube(ctx, search_query)
 
         except Exception as e:
-            await ctx.send(f"⚠️ Error al procesar la canción de Spotify: {e}")
+            await ctx.send(f"⚠️ Error al buscar la canción en Spotify: {e}")
 
     async def play_spotify_playlist(self, ctx, playlist_id: str):
         try:
@@ -175,25 +175,22 @@ class Music(commands.Cog):
                 tracks = self.cache[playlist_id]['data']
                 await ctx.send("✅ Playlist cargada desde la caché.")
             else:
-                results = self.sp.playlist_items(playlist_id, limit=100, offset=0,additional_types=['track'])
+                results = self.sp.playlist_items(playlist_id, limit=100, offset=0, additional_types=['track'])
                 tracks = results.get('items', [])
                 self.cache[playlist_id] = {'data': tracks, 'timestamp': time.time()}
                 await ctx.send("🔄 Playlist cargada desde Spotify.")
 
             # Procesar cada canción
             for track in tracks:
-                song = track.get('track', {})
+                song = track['track']
                 if not song.get('is_playable', True):
                     continue
-                song_name = song.get('name', "Canción desconocida")
-                artist_data = song.get('artists', [{}])
-                artist = artist_data[0].get('name', 'Artista desconocido') if artist_data else 'Artista desconocido'
+                song_name = song['name']
+                artist_data = song['artists']
+                artist = artist_data[0]['name'] if artist_data else 'Artista desconocido'
 
-                # Usar add_or_update_song para registrar en la base de datos
-                add_or_update_song(self, title=song_name, url=None, artist=artist, duration=0)
-
-                # Añadir la canción a la cola
-                await self.queue_song(ctx, f"{song_name} {artist}")
+                # Convertir en búsqueda y añadir a la cola
+                await self.search_and_queue_youtube(ctx, f"{song_name} {artist}")
 
             await ctx.send("🎶 Todas las canciones de la playlist han sido añadidas a la cola.")
         except Exception as e:
@@ -757,10 +754,8 @@ class Music(commands.Cog):
                         title = track.get('name', 'Unknown Title')
                         duration = track.get('duration_ms', 0) // 1000
                         artist = ", ".join([artist['name'] for artist in track.get('artists', [])])
-                        url = track.get('external_urls', {}).get('spotify', '')
-
                         # Registrar cada canción en tu base de datos
-                        add_or_update_song(self, title=title, url=url, artist=artist, duration=duration)
+                        add_or_update_song(self, title=title, url=None, artist=artist, duration=duration)
                         total_songs += 1
 
                     # Incrementar el offset para obtener la siguiente página de resultados
