@@ -60,8 +60,14 @@ class Music(commands.Cog):
 
     def format_duration(self, duration):
         """Convierte una duración en segundos a un formato legible (HH:MM:SS)"""
+        duration = round(duration, 0)
         hours, remainder = divmod(duration, 3600)
         minutes, seconds = divmod(remainder, 60)
+
+        hours = int(hours)
+        minutes = int(minutes)
+        seconds = int(seconds)
+
         return f"{hours:02}:{minutes:02}:{seconds:02}"
 
     @commands.command()
@@ -482,16 +488,16 @@ class Music(commands.Cog):
             total_duration = self.current_song['duration']  # Asegúrate de que 'duration' esté definido
             song_title = self.current_song['title']
 
-            while self.voice_client.is_playing():  # Verifica si la canción aún se está reproduciendo
-                elapsed_time = time.time() - self.start_time
-                formatted_elapsed_time = self.format_duration(elapsed_time)
-                formatted_total_duration = self.format_duration(total_duration)
+            # Calcula el tiempo transcurrido una sola vez
+            elapsed_time = time.time() - self.start_time
+            formatted_elapsed_time = self.format_duration(elapsed_time)
+            formatted_total_duration = self.format_duration(total_duration)
 
-                # Enviar el mensaje con el estado actual de la canción
-                await ctx.send(
-                    f"🎶 Ahora reproduciendo: **{song_title}**\n⏳ Tiempo transcurrido: {formatted_elapsed_time}/{formatted_total_duration}")
-                await asyncio.sleep(1)  # Espera un segundo antes de actualizar nuevamente
-
+            # Enviar el mensaje sin actualizaciones posteriores
+            await ctx.send(
+                f"🎶 Ahora reproduciendo: **{song_title}**\n"
+                f"⏳ Tiempo transcurrido: {formatted_elapsed_time}/{formatted_total_duration}"
+            )
         else:
             await ctx.send("⚠️ No hay ninguna canción reproduciéndose en este momento.")
 
