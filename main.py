@@ -14,11 +14,12 @@ bot = commands.Bot(command_prefix='td?', intents=intents, help_command=None)
 
 # ID del canal específico
 CHANNEL_ID_CLIPS = 1283061656817238027 # Reemplaza con el ID de tu canal
+respondFreakpay = False
+
 
 @bot.event
 async def on_ready():
     print(f'Conectado como {bot.user.name}')
-    check_shutdown.start()  # Inicia la tarea de apagado
 
 # Mover la verificación de mensajes a on_message
 async def on_message(message):
@@ -27,11 +28,30 @@ async def on_message(message):
         return
     
     # Verifica si el mensaje está en el canal específico
+    # Evita que el bot procese sus propios mensajes
+    if message.author.bot:
+        return
+    
+    # Verifica si el mensaje está en el canal específico
     if message.channel.id == CHANNEL_ID_CLIPS:
+        # Comprueba si el autor no es administrador
         # Comprueba si el autor no es administrador
         if not message.author.guild_permissions.administrator:
             # Si el mensaje no contiene adjuntos, elimínalo
+            # Si el mensaje no contiene adjuntos, elimínalo
             if not message.attachments:
+                try:
+                    await message.delete()
+                    await message.channel.send(
+                        f"{message.author.mention}, solo se permiten mensajes con archivos adjuntos en este canal.",
+                        delete_after=7  # Mensaje temporal que se elimina después de 5 segundos
+                    )
+                except discord.Forbidden:
+                    print(f"No tengo permisos para eliminar mensajes en el canal {message.channel.name}.")
+                except discord.HTTPException as e:
+                    print(f"Ocurrió un error al intentar eliminar un mensaje: {e}")
+
+    # Procesa los comandos después de manejar los mensajes
                 try:
                     await message.delete()
                     await message.channel.send(
