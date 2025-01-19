@@ -39,7 +39,7 @@ class MusicCog(commands.Cog):
             self.voice_client = await ctx.author.voice.channel.connect()
         return self.voice_client
 
-    @commands.command()
+    @commands.command(name="p")
     async def play(self, ctx, *, query: str):
         voice_client = await self.connect_to_voice(ctx)
         if not voice_client:
