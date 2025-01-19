@@ -176,7 +176,7 @@ class MusicCog(commands.Cog):
         embed = discord.Embed(title="Controles de Reproducción", description="Usa los botones a continuación para controlar la música.", color=discord.Color.blue())
         await ctx.send(embed=embed, view=view)
 
-    @commands.command()
+        @commands.command()
     async def historial(self, ctx):
         """Muestra las canciones más reproducidas."""
         top_songs = get_top_songs(5)
