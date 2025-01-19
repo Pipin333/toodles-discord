@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands, tasks
 import datetime
 import os
-import random
 import logging
 import asyncio
 
@@ -15,15 +14,6 @@ bot = commands.Bot(command_prefix='td?', intents=intents, help_command=None)
 
 # ID del canal específico
 CHANNEL_ID_CLIPS = 1283061656817238027 # Reemplaza con el ID de tu canal
-respondFreakpay = False
-
-@tasks.loop(minutes=1)
-async def check_shutdown():
-    # Verifica la hora actual
-    now = datetime.datetime.utcnow()
-    if now.hour == 7 and now.minute == 30:
-        print("Hora de apagarse. Apagando el bot...")
-        await bot.close()
 
 @bot.event
 async def on_ready():
@@ -31,19 +21,34 @@ async def on_ready():
     check_shutdown.start()  # Inicia la tarea de apagado
 
 # Mover la verificación de mensajes a on_message
-@bot.event
 async def on_message(message):
+    # Evita que el bot procese sus propios mensajes
+    if message.author.bot:
+        return
+    
+    # Verifica si el mensaje está en el canal específico
     if message.channel.id == CHANNEL_ID_CLIPS:
+        # Comprueba si el autor no es administrador
         if not message.author.guild_permissions.administrator:
+            # Si el mensaje no contiene adjuntos, elimínalo
             if not message.attachments:
-                await message.delete()
-
-    # Procesa los comandos después de manejar los mensajes
+                try:
+                    await message.delete()
+                    await message.channel.send(
+                        f"{message.author.mention}, solo se permiten mensajes con adjuntos en este canal.",
+                        delete_after=5  # Mensaje temporal que se elimina después de 5 segundos
+                    )
+                except discord.Forbidden:
+                    print(f"No tengo permisos para eliminar mensajes en el canal {message.channel.name}.")
+                except discord.HTTPException as e:
+                    print(f"Ocurrió un error al intentar eliminar un mensaje: {e}")
+    
+    # Asegúrate de que el resto de eventos de `on_message` funcionen correctamente
     await bot.process_commands(message)
         
 async def main():
     try:
-        await bot.load_extension('suzuranMusic')
+        await bot.load_extension('suzuranMusic_v6')
         print("Cog 'suzuranMusic' cargado correctamente.")
       #  await bot.load_extension('RoleChanger')
       # print("Cog 'RoleChanger' cargado correctamente.")

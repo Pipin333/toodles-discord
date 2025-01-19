@@ -1,49 +1,41 @@
+import discord
+import random
+from discord.ext import commands, tasks
+import yt_dlp as youtube_dl
 import asyncio
+import time
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+import os
 import concurrent.futures
 import math
-import os
-import random
 import subprocess
-import time
-
-import discord
-import spotipy
-import yt_dlp as youtube_dl
-from discord.ext import commands, tasks
-from spotipy.oauth2 import SpotifyClientCredentials
-
 from database import setup_database, add_or_update_song
 
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
 SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
 
-
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.song_queue = []  # Lista que almacenará las canciones en cola
+        self.song_queue = []
         self.current_song = None
         self.voice_client = None
         self.check_inactivity.start()
         self.start_time = None
-        self.cache = {}
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
-        self.sp = spotipy.Spotify(
-            auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
+        self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
         self.is_preloading = False  # Indicador para controlar la precarga
-        self.is_preloading = False  # Indicador para controlar la precarga
-        self.start_time = None  # Inicializa el tiempo de reproducción
-        self.cache = {}  # Diccionario para caché
+
         # Semaphore to limit concurrent tasks for loading songs
         self.semaphore = asyncio.Semaphore(3)  # Limiting to 3 concurrent tasks
         setup_database()
-        print("Cog 'Music' inicializado correctamente.")
 
         try:
             subprocess.run(
                 ["ffmpeg", "-version"],  # Comando para verificar FFmpeg
                 stdout=subprocess.DEVNULL,  # Suprime la salida estándar
-                stderr=subprocess.DEVNULL  # Suprime la salida de error
+                stderr=subprocess.DEVNULL   # Suprime la salida de error
             )
             print("FFmpeg precargado correctamente.")
         except FileNotFoundError:
@@ -57,7 +49,7 @@ class Music(commands.Cog):
             await ctx.send("No tengo permisos para borrar mensajes.")
         except discord.HTTPException as e:
             await ctx.send(f"Error al borrar el mensaje: {e}")
-
+    
     def format_duration(self, duration):
         """Convierte una duración en segundos a un formato legible (HH:MM:SS)"""
         duration = round(duration, 0)
@@ -92,6 +84,7 @@ class Music(commands.Cog):
         )
         await ctx.send(help_message)
 
+    
     @commands.command()
     async def play(self, ctx, search: str):
         # Conectar al canal de voz si no está conectado
@@ -122,6 +115,7 @@ class Music(commands.Cog):
         else:
             await self.search_and_queue_youtube(ctx, search)  # Búsqueda genérica
 
+
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
         """Abreviación del comando play"""
@@ -129,21 +123,44 @@ class Music(commands.Cog):
 
     async def play_next(self, ctx):
         """Reproduce la siguiente canción en la cola."""
-        # Revisar el estado de la cola y la reproducción actual
-        if self.song_queue:
-            # Actualizar la canción actual y reproducir
-            self.current_song = self.song_queue.pop(0)
-            print(f"[INFO] Reproduciendo siguiente canción: {self.current_song['title']}")
-            await self._play_song(ctx)
-        else:
-            # La cola está vacía
-            if self.current_song:
-                # Si ya hay una canción reproduciéndose
-                print("[INFO] La cola está vacía, pero hay una canción en progreso.")
-            else:
-                # La cola vacía y no hay canciones en reproducción
-                print("[INFO] No hay canciones en la cola y nada se está reproduciendo.")
-                await ctx.send("⚠️ No hay más canciones en la cola.")
+        await self._play_song(ctx)
+
+    async def play_youtube_playlist(self, ctx, playlist_url: str):
+        """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano y reproduce la primera canción."""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'verbose': True,
+            'quiet': False,
+            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
+            'cachedir': False
+        }
+
+        try:
+            # Extraer información completa de la playlist
+            playlist_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(playlist_url, download=False))
+
+            entries = playlist_info.get('entries', [])
+            total_songs = len(entries)
+
+            await ctx.send(f"🔄 Cargando playlist de YouTube con {total_songs} canciones...")
+
+            # Añadir todas las canciones como placeholders en la cola
+            for entry in entries:
+                video_title = entry.get('title')
+                await self.queue_song(ctx, video_title)  # Añadir canciones como placeholders (sin URL)
+
+            await ctx.send(f"🎶 Se añadieron {total_songs} canciones a la cola. Las URLs se están cargando en segundo plano.")
+
+            # Reproducir la primera canción si existe
+            if self.song_queue:
+                first_song = self.song_queue[0]  # Asume que tienes una cola de canciones
+                await self.play_song(ctx, first_song)  # Reproduce la primera canción
+
+                # Cargar las URLs en segundo plano
+                await self.load_songs_in_background(ctx)  # Cambia esto si tienes un método diferente
+
+        except Exception as e:
+            await ctx.send(f"⚠️ Error al procesar la playlist de YouTube: {e}")
 
     async def load_songs_in_background(self, ctx):
         """Carga las URLs de las canciones en segundo plano."""
@@ -159,7 +176,7 @@ class Music(commands.Cog):
             await asyncio.sleep(1)  # Pausa para no sobrecargar el bot
 
     async def play_spotify_track(self, ctx, track_url: str):
-        """Convierte una canción de Spotify en una búsqueda de YouTube y la añade a la cola."""
+        """Busca una canción individual de Spotify y la añade a la cola."""
         track_id = track_url.split("/")[-1].split("?")[0]
 
         try:
@@ -169,39 +186,62 @@ class Music(commands.Cog):
             artist_name = track_info['artists'][0]['name']
             search_query = f"{song_name} {artist_name}"
 
-            # Buscar en YouTube
+            # Buscar en YouTube y añadir a la cola
             await self.search_and_queue_youtube(ctx, search_query)
 
         except Exception as e:
-            await ctx.send(f"⚠️ Error al buscar la canción en Spotify: {e}")
+            await ctx.send(f"⚠️ Error al procesar la canción de Spotify: {e}")
 
-    async def play_spotify_playlist(self, ctx, playlist_id: str):
+    async def play_spotify_playlist(self, ctx, playlist_url: str):
+        """Reproduce la primera canción de una playlist de Spotify y añade el resto como placeholders."""
+        playlist_id = playlist_url.split("/")[-1].split("?")[0]
+
         try:
-            # Verificar cache o cargar información desde Spotify
-            if playlist_id in self.cache:
-                tracks = self.cache[playlist_id]['data']
-                await ctx.send("✅ Playlist cargada desde la caché.")
-            else:
-                results = self.sp.playlist_items(playlist_id, limit=100, offset=0, additional_types=['track'])
-                tracks = results.get('items', [])
-                self.cache[playlist_id] = {'data': tracks, 'timestamp': time.time()}
-                await ctx.send("🔄 Playlist cargada desde Spotify.")
+            # Cargar la primera página de canciones (máximo 100)
+            results = self.sp.playlist_tracks(playlist_id, limit=100, offset=0)
+            tracks = results['items']
+            total_songs = results['total']
 
-            # Procesar cada canción
-            for track in tracks:
-                song = track['track']
-                if not song.get('is_playable', True):
-                    continue
-                song_name = song['name']
-                artist_data = song['artists']
-                artist = artist_data[0]['name'] if artist_data else 'Artista desconocido'
+            # Mensaje inicial
+            await ctx.send(f"🔄 Cargando playlist de Spotify con {total_songs} canciones...")
 
-                # Convertir en búsqueda y añadir a la cola
-                await self.search_and_queue_youtube(ctx, f"{song_name} {artist}")
+            # Reproducir la primera canción
+            if tracks:
+                first_track = tracks[0]['track']
+                song_name = first_track['name']
+                artist_name = first_track['artists'][0]['name']
+                search_query = f"{song_name} {artist_name}"
 
-            await ctx.send("🎶 Todas las canciones de la playlist han sido añadidas a la cola.")
+                await self.search_and_queue_youtube(ctx, search_query)
+
+                # Añadir el resto de las canciones a la cola como placeholders
+                for track in tracks[1:]:
+                    song_name = track['track']['name']
+                    artist_name = track['track']['artists'][0]['name']
+                    search_query = f"{song_name} {artist_name}"
+                    await self.queue_song(ctx, search_query)
+
+            # Si hay más de 100 canciones, cargar las restantes
+            if total_songs > 100:
+                offset = 100
+                while offset < total_songs:
+                    results = self.sp.playlist_tracks(playlist_id, limit=100, offset=offset)
+                    tracks = results['items']
+
+                    # Añadir las canciones a la cola como placeholders
+                    for track in tracks:
+                        song_name = track['track']['name']
+                        artist_name = track['track']['artists'][0]['name']
+                        search_query = f"{song_name} {artist_name}"
+                        await self.queue_song(ctx, search_query)
+
+                    offset += 100  # Incrementar el offset para la siguiente página
+                    await asyncio.sleep(1)  # Pausa para no sobrecargar el bot
+
+            await ctx.send(f"🎶 Se añadieron todas las canciones de la playlist de Spotify a la cola.")
+
         except Exception as e:
-            await ctx.send(f"⚠️ Error en play_spotify_playlist: {e}")
+            await ctx.send(f"⚠️ Error al procesar la playlist de Spotify: {e}")
 
     async def play_youtube_url(self, ctx, video_url: str):
         """Reproduce una canción desde una URL de YouTube"""
@@ -215,79 +255,52 @@ class Music(commands.Cog):
 
         try:
             # Extraer información del video de YouTube
-            video_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(video_url,
-                                                                                                     download=False))  # Extrae info en hilo separado
-
+            video_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(video_url, download=False))
+            
             # Obtener el título y la URL para la reproducción
             video_title = video_info.get('title')
             video_url = video_info.get('url')
 
             # Añadir la canción a la cola y reproducir
-            await self.queue_song(ctx, video_title)  # Modifica según cómo gestiones la cola
+            await self.queue_song(ctx, video_title, video_url)  # Modifica según cómo gestiones la cola
             await ctx.send(f"🎶 Reproduciendo: **{video_title}**")
         except Exception as e:
             await ctx.send(f"⚠️ Error al cargar la canción de YouTube: {e}")
 
     async def play_youtube_playlist(self, ctx, playlist_url: str):
-        """
-        Reproduce una playlist de YouTube en el canal de voz actual.
-
-        Args:
-            ctx: Contexto del comando.
-            playlist_url: URL de la playlist de YouTube.
-
-        Returns:
-            Añade las canciones de la playlist a la cola y comienza a reproducir.
-        """
+        """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano"""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'verbose': True,
+            'quiet': False,
+            'noplaylist': False,
+            'cachedir': False  # Procesar toda la playlist, no solo el primer video
+        }
+        self.is_preloading = True  # Indicar que se están cargando canciones
         try:
-            # Validar que el usuario está en un canal de voz
-            if not ctx.author.voice or not ctx.author.voice.channel:
-                await ctx.send("❌ Debes estar en un canal de voz para usar este comando.")
-                return
+            # Extraer información completa de la playlist
+            playlist_info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(playlist_url, download=False))
 
-            # Conectarse al canal de voz del usuario si aún no está conectado
-            if not self.voice_client or not self.voice_client.is_connected():
-                channel = ctx.author.voice.channel
-                self.voice_client = await channel.connect()
+            entries = playlist_info.get('entries', [])
+            total_songs = len(entries)
 
-            # Crear opciones para obtener la información de la playlist usando youtube_dl
-            ydl_opts = {
-                'quiet': True,
-                'extract_flat': True  # Extraer solo los metadatos, no descargar el video
-            }
+            await ctx.send(f"🔄 Cargando playlist de YouTube con {total_songs} canciones...")
 
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(playlist_url, download=False)
+            # Añadir todas las canciones como placeholders en la cola
+            for entry in entries:
+                video_title = entry.get('title')
+                await self.queue_song(ctx, video_title)  # Añadir canciones como placeholders (sin URL)
 
-            # Verificar si la URL es realmente una playlist
-            if 'entries' not in info:
-                await ctx.send("❌ La URL proporcionada no es una playlist válida de YouTube.")
-                return
+            await ctx.send(f"🎶 Se añadieron {total_songs} canciones a la cola. Las URLs se están cargando en segundo plano.")
 
-            playlist_title = info.get('title', 'Playlist desconocida')
-            playlist_entries = info['entries']
-
-            # Enviar mensaje al usuario
-            await ctx.send(f"📃 Procesando la playlist: **{playlist_title}** con {len(playlist_entries)} canciones.")
-
-            # Agregar las canciones de la playlist a la cola
-            for entry in playlist_entries:
-                song_url = entry.get('url', None)
-                if not song_url:
-                    continue
-
-                # Usar la función queue_song o un equivalente para agregar canciones a la cola
-                await self.queue_song(ctx, song_url)
-
-            # Reproducir la primera canción si no se está reproduciendo nada
-            if not self.current_song:
-                await self.play_next(ctx)
-
-            await ctx.send(f"✅ Playlist **'{playlist_title}'** añadida a la cola.")
+            # Cargar las URLs en segundo plano utilizando el método adecuado
+            await self.load_songs_in_background(ctx)
 
         except Exception as e:
-            await ctx.send("❌ Ocurrió un error al procesar la playlist.")
-            print(f"Error en play_youtube_playlist(): {e}")
+            await ctx.send(f"⚠️ Error al procesar la playlist de YouTube: {e}")
+
+        finally:
+            self.is_preloading = False  # Restablecer al finalizar
 
     async def search_and_queue_youtube(self, ctx, search: str):
         """Realiza una búsqueda en YouTube y añade la canción a la cola sin bloquear el hilo principal."""
@@ -303,8 +316,7 @@ class Music(commands.Cog):
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             try:
                 # Aquí utilizamos la variable `search` directamente
-                info = ydl.extract_info(search,
-                                        download=False)  # Cambia download=True a False para obtener solo la información
+                info = ydl.extract_info(search, download=False)  # Cambia download=True a False para obtener solo la información
                 if 'entries' in info:
                     # Si hay múltiples entradas (como en listas de reproducción)
                     for entry in info['entries']:
@@ -328,56 +340,49 @@ class Music(commands.Cog):
             await self._play_song(ctx)
 
     async def _play_song(self, ctx):
+        """Reproduce una canción desde la cola y la registra en la base de datos."""
         if self.song_queue:
             song = self.song_queue.pop(0)
 
-            if not song.get('loaded', False):
-                try:
-                    song = await self.load_song_url(song['title'])
-                except Exception as e:
-                    print(f"[ERROR] No se pudo cargar la canción '{song['title']}': {e}")
-                    await ctx.send("⚠️ No se pudo cargar la canción. Saltando a la siguiente.")
-                    return await self.play_next(ctx)
+            # Si la canción no está cargada, cargarla ahora
+            if not song['loaded']:
+                song = await self.load_song_url(song['title'])
 
             song_url = song['url']
             song_title = song['title']
-            song_artist = song.get('artist', 'Desconocido')
-            song_duration = song.get('duration', 'Desconocido')
-
-            self.current_song = song
+            song_artist = song.get('artist', 'Desconocido')  # Suponiendo que hay un campo 'artist'
+            song_duration = song['duration']
+            self.current_song = song  # Actualiza la canción actual
             self.start_time = time.time()
 
             try:
-                if self.voice_client and self.voice_client.is_connected():
+                if self.voice_client.is_connected():
                     source = discord.FFmpegPCMAudio(
-                        song_url,
-                        before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+                        song_url, 
+                        before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 
                         options='-vn'
                     )
                     self.voice_client.play(
-                        source,
+                        source, 
                         after=lambda e: self.bot.loop.create_task(self.play_next(ctx))
                     )
 
-                    # Registrar la canción actual en la base de datos
-                    add_or_update_song(self, title=song_title, url=song_url, artist=song_artist, duration=song_duration)
+                    # Agregar la canción a la base de datos
+                    add_or_update_song(song_title, song_url, artist=song_artist, duration=song_duration)
 
-                    await self.preload_next_song()
+                    # Inicia la precarga de la siguiente canción
+                    await self.preload_next_song(ctx)
+
                     await ctx.send(f"🎶 Ahora reproduciendo: **{song_title}**")
                 else:
-                    print("[ERROR] El cliente de voz no está conectado.")
                     await ctx.send("⚠️ No estoy conectado a un canal de voz.")
             except Exception as e:
-                print(f"[ERROR] Error al reproducir la canción '{song_title}': {e}")
+                print(f"Error al reproducir la canción: {e}")
                 await ctx.send("⚠️ Hubo un error al intentar reproducir la canción.")
         else:
-            if self.current_song:
-                print("[INFO] La cola está vacía, pero hay una canción reproduciéndose.")
-            else:
-                print("[INFO] La cola y la reproducción están vacías.")
-                await ctx.send("⚠️ No hay más canciones en la cola.")
+            await ctx.send("⚠️ No hay más canciones en la cola.")
 
-    async def preload_next_song(self):
+    async def preload_next_song(self, ctx):
         """Carga la URL de la próxima canción en la cola, asegurándose de que solo una canción se cargue a la vez."""
         if self.is_preloading:
             return  # Si ya se está precargando, salimos de la función
@@ -403,21 +408,19 @@ class Music(commands.Cog):
         }
 
         try:
-            info = await asyncio.to_thread(
-                lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{song_title}", download=False))
+            info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{song_title}", download=False))
             if info.get('entries'):
                 song_info = info['entries'][0]
                 song_url = song_info['url']
                 song_duration = song_info.get('duration', 0)  # Obtener duración de la canción
                 return {'title': song_title, 'url': song_url, 'duration': song_duration, 'loaded': True}
         except Exception as e:
-            print(f"Error al cargar la URL de la canción: {e}")
             return {'title': song_title, 'url': None, 'duration': 0, 'loaded': False}
 
     @commands.command()
     async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias."""
-
+        
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,  # Evita mostrar mensajes verbosos
@@ -431,7 +434,7 @@ class Music(commands.Cog):
                 if 'entries' in info:
                     search_results = info['entries'][:10]  # Limitar a las primeras 10 entradas
                     results_message = "🎵 Canciones encontradas:\n"
-
+                    
                     for idx, entry in enumerate(search_results):
                         title = entry.get('title', 'Sin título')
                         duration = entry.get('duration', 0)
@@ -464,8 +467,7 @@ class Music(commands.Cog):
                                     channel = ctx.author.voice.channel
                                     self.voice_client = await channel.connect()
                                 else:
-                                    await ctx.send(
-                                        "No estoy en un canal de voz. Conéctame a un canal y vuelve a intentar.")
+                                    await ctx.send("No estoy en un canal de voz. Conéctame a un canal y vuelve a intentar.")
                             else:
                                 if not self.voice_client.is_playing() and not self.current_song:
                                     await self._play_song(ctx)
@@ -506,7 +508,7 @@ class Music(commands.Cog):
         """Muestra la cola de canciones en páginas de 15 elementos"""
         items_per_page = 15
         total_songs = len(self.song_queue)
-
+        
         if total_songs == 0:
             await ctx.send("La cola de canciones está vacía.")
             return
@@ -519,11 +521,11 @@ class Music(commands.Cog):
             start_idx = (page_num - 1) * items_per_page
             end_idx = min(start_idx + items_per_page, total_songs)
             queue_message = f"**Cola de canciones - Página {page_num}/{total_pages}:**\n"
-
+            
             for idx, song in enumerate(self.song_queue[start_idx:end_idx], start=start_idx + 1):
                 song_status = "Cargada" if song.get('loaded', False) else "Pendiente de cargar"
                 queue_message += f"{idx}. **{song['title']}** ({song_status})\n"
-
+            
             return queue_message
 
         # Mostrar la primera página
@@ -531,7 +533,7 @@ class Music(commands.Cog):
         message = await ctx.send(get_page(current_page))
 
         # Añadir reacciones para la paginación
-        if total_pages > 1:  # Agrega reacciones solo si hay muchas páginas
+        if total_pages > 1:
             await message.add_reaction('⬅️')  # Para retroceder
             await message.add_reaction('➡️')  # Para avanzar
 
@@ -572,7 +574,7 @@ class Music(commands.Cog):
         if position < 1:
             await ctx.send("La posición debe ser mayor que 0.")
             return
-
+        
         ydl_opts = {
             'format': 'bestaudio/best',
             'verbose': True,
@@ -588,7 +590,7 @@ class Music(commands.Cog):
                     song_url = song_info['url']
                     song_title = song_info['title']
                     song_duration = song_info.get('duration', 0)
-
+                    
                     song = {'url': song_url, 'title': song_title, 'duration': song_duration}
                     self.song_queue.insert(position - 1, song)
                     await ctx.send(f"🎶 Canción añadida a la posición {position}: **{song_title}**")
@@ -602,10 +604,10 @@ class Music(commands.Cog):
     @commands.command()
     async def move(self, ctx, current_index: int, new_index: int):
         """Mueve una canción a una nueva posición en la cola y la carga si se mueve al índice 1"""
-        song_title = self.current_song['title']
-
+        song_title = self.current_song['title'] 
+        
         if current_index < 1 or new_index < 1:
-            await ctx.send("⚠️ No se encontraron canciones.")
+            await ctx.send("Los índices deben ser mayores que 0.")
             return
 
         if current_index - 1 >= len(self.song_queue) or new_index - 1 >= len(self.song_queue):
@@ -614,13 +616,13 @@ class Music(commands.Cog):
 
         song = self.song_queue.pop(current_index - 1)
         self.song_queue.insert(new_index - 1, song)
-
+        
         await ctx.send(f"🎶 Canción {song_title}movida de la posición {current_index} a la posición {new_index}.")
         await self.delete_user_message(ctx)
 
         # Si la canción se mueve al índice 1, la carga
         if new_index == 1:
-            await self.preload_next_song()  # Cargar la canción en el índice 1
+            await self.preload_next_song(ctx)  # Cargar la canción en el índice 1
 
     @commands.command()
     async def remove(self, ctx, index: int):
@@ -696,6 +698,7 @@ class Music(commands.Cog):
         else:
             await ctx.send("No hay canciones en el historial.")
 
+
     @commands.command()
     async def leave(self, ctx):
         """Desconecta al bot del canal de voz"""
@@ -720,71 +723,5 @@ class Music(commands.Cog):
                 self.current_song = None
                 print("Desconectado por inactividad.")
 
-    @commands.command(name="canciondb", help="Añade una canción o playlist a la base de datos.")
-    async def add_song(self, ctx, link: str):
-        """
-        Agrega canciones individuales o playlists a la base de datos usando enlaces de YouTube o Spotify.
-        """
-        try:
-            # Validar que el enlace proporcionado sea una cadena
-            if not isinstance(link, str):
-                await ctx.send(
-                    f"❌ Error: El enlace proporcionado no es válido. Se esperaba un enlace tipo 'str', pero se recibió '{type(link).__name__}'.")
-                return
-
-            # Determinar la fuente del enlace
-            if "spotify.com" in link:  # Comprobar si el enlace es de Spotify
-                # Extraer el ID de la playlist
-                playlist_id = link.split("/")[-1].split("?")[0]
-                if not playlist_id:
-                    await ctx.send("❌ Error: No se pudo extraer el ID de la playlist del enlace proporcionado.")
-                    return
-
-                total_songs = 0
-                offset = 0
-                limit = 100
-                while True:
-                    # Obtener hasta 100 pistas a la vez
-                    results = self.sp.playlist_items(
-                        playlist_id,
-                        limit=limit,
-                        offset=offset,
-                        additional_types=['track']
-                    )
-                    tracks = results.get('items', [])
-
-                    if not tracks:  # Si no hay más canciones, salir del bucle
-                        break
-
-                    # Procesar cada pista obtenida
-                    for item in tracks:
-                        track = item.get('track', {})
-                        if not track.get('is_playable', True):  # Filtrar pistas no reproducibles
-                            continue
-                        title = track.get('name', 'Unknown Title')
-                        duration = track.get('duration_ms', 0) // 1000
-                        artist = ", ".join([artist['name'] for artist in track.get('artists', [])])
-                        # Registrar cada canción en tu base de datos
-                        add_or_update_song(self, title=title, url=None, artist=artist, duration=duration)
-                        total_songs += 1
-
-                    # Incrementar el offset para obtener la siguiente página de resultados
-                    offset += limit
-
-                # Confirmar cuántas canciones se añadieron
-                await ctx.send(
-                    f"✅ Se añadieron un total de {total_songs} canciones de la playlist a la base de datos correctamente.")
-
-            elif "youtube.com" in link or "youtu.be" in link:
-                # Aquí puede ir la lógica para manejar enlaces de YouTube si es necesario
-                await ctx.send(
-                    "⚠️ Actualmente solo se ha procesado el soporte de Spotify. Añade soporte específico para YouTube si es necesario.")
-            else:
-                await ctx.send(
-                    "❌ No se reconoce el tipo de enlace proporcionado. Solo se soportan YouTube y Spotify por ahora.")
-        except Exception as e:
-            await ctx.send(f"❌ Ocurrió un error en `add_song`: {type(e).__name__} - {e}")
-
-
 async def setup(bot):
-    await bot.add_cog(Music(bot))
+   await bot.add_cog(Music(bot))
