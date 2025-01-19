@@ -1,0 +1,1 @@
+# Archivo que maneja las interfaces de usuario dentro de los mensajes del bot, pensado para Toodles v6.
