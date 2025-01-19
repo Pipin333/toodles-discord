@@ -10,6 +10,9 @@ import math
 from spotipy.oauth2 import SpotifyClientCredentials
 import spotipy
 from database import setup_database, add_or_update_song, get_top_songs
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
 SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
@@ -58,7 +61,11 @@ class MusicCog(commands.Cog):
             info = ydl.extract_info(url, download=False)
             song = {'title': info['title'], 'url': info['url'], 'duration': info.get('duration', 0)}
             self.song_queue.append(song)
-            add_or_update_song(song['title'], song['url'], duration=song['duration'])
+            try:
+                logging.info(f"Registrando canción en la base de datos: {song['title']}")
+                add_or_update_song(song['title'], song['url'], duration=song['duration'])
+            except Exception as e:
+                logging.error(f"Error al registrar la canción en la base de datos: {e}")
             embed = discord.Embed(title="Canción Añadida", description=f"🎶 **{song['title']}** ha sido añadida a la cola.", color=discord.Color.green())
             await ctx.send(embed=embed)
         if not self.current_song:
@@ -89,7 +96,11 @@ class MusicCog(commands.Cog):
             song_info = info['entries'][0]
             song = {'title': song_info['title'], 'url': song_info['url'], 'duration': song_info.get('duration', 0)}
             self.song_queue.append(song)
-            add_or_update_song(song['title'], song['url'], duration=song['duration'])
+            try:
+                logging.info(f"Registrando canción en la base de datos: {song['title']}")
+                add_or_update_song(song['title'], song['url'], duration=song['duration'])
+            except Exception as e:
+                logging.error(f"Error al registrar la canción en la base de datos: {e}")
             embed = discord.Embed(title="Canción Añadida", description=f"🎶 **{song['title']}** ha sido añadida a la cola.", color=discord.Color.green())
             await ctx.send(embed=embed)
         if not self.current_song:
@@ -107,7 +118,7 @@ class MusicCog(commands.Cog):
 
         def after_playing(error):
             if error:
-                print(f"Error en la reproducción: {error}")
+                logging.error(f"Error en la reproducción: {error}")
             self.current_song = None
             if self.song_queue:
                 self.bot.loop.create_task(self.start_playing(ctx))
