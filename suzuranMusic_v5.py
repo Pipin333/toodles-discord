@@ -361,10 +361,11 @@ class Music(commands.Cog):
                         song_url, 
                         before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 
                         options='-vn'
-                    )
+                                        )
                     self.voice_client.play(
-                        source, 
-                        after=lambda e: self.bot.loop.create_task(self.play_next(ctx))
+                        discord.FFmpegPCMAudio(url),
+                        after=lambda e: print(f"⚠️ Error en la reproducción: {e}") if e else None
+                    )
                     )
 
                     # Agregar la canción a la base de datos
