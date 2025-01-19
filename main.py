@@ -68,7 +68,7 @@ async def on_message(message):
         
 async def main():
     try:
-        await bot.load_extension('suzuranMusic_v6')
+        await bot.load_extension('suzuranMusic_v5')
         print("Cog 'suzuranMusic' cargado correctamente.")
       #  await bot.load_extension('RoleChanger')
       # print("Cog 'RoleChanger' cargado correctamente.")
