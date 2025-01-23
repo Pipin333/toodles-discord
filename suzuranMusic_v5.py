@@ -41,6 +41,18 @@ class Music(commands.Cog):
         except FileNotFoundError:
             print("Error: FFmpeg no está instalado o no está en el PATH.")
 
+        self.temp_cookiefile = None
+        # Crear un archivo temporal para las cookies
+        cookies_content = os.getenv('COOKIES')
+        if cookies_content:
+            # Crear un archivo temporal para almacenar las cookies
+            self.temp_cookiefile = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8')
+            self.temp_cookiefile.write(cookies_content)
+            self.temp_cookiefile.close()  # Asegurarse de que el contenido se guarde
+
+        else:
+            print("⚠️ No se encontraron cookies en las variables de entorno.")
+
     async def delete_user_message(self, ctx):
         await asyncio.sleep(0.1)
         try:
@@ -134,6 +146,11 @@ class Music(commands.Cog):
             'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
             'cachedir': False
         }
+
+        if self.temp_cookiefile:
+            ydl_opts['cookiefile'] = self.temp_cookiefile.name
+
+        return ydl_opts
 
         try:
             # Extraer información completa de la playlist
@@ -249,9 +266,14 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True,
-            'cachedir': False  # Asegurarse de que no trate de cargar listas de reproducción
+            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
+            'cachedir': False
         }
+
+        if self.temp_cookiefile:
+            ydl_opts['cookiefile'] = self.temp_cookiefile.name
+
+        return ydl_opts
 
         try:
             # Extraer información del video de YouTube
@@ -273,9 +295,15 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': False,
-            'cachedir': False  # Procesar toda la playlist, no solo el primer video
+            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
+            'cachedir': False
         }
+
+        if self.temp_cookiefile:
+            ydl_opts['cookiefile'] = self.temp_cookiefile.name
+
+        return ydl_opts
+
         self.is_preloading = True  # Indicar que se están cargando canciones
         try:
             # Extraer información completa de la playlist
@@ -303,15 +331,18 @@ class Music(commands.Cog):
             self.is_preloading = False  # Restablecer al finalizar
 
     async def search_and_queue_youtube(self, ctx, search: str):
-        """Realiza una búsqueda en YouTube y añade la canción a la cola sin bloquear el hilo principal."""
         ydl_opts = {
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True,
-            'cachedir': False,
-            'default_search': 'ytsearch'
+            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
+            'cachedir': False
         }
+
+        if self.temp_cookiefile:
+            ydl_opts['cookiefile'] = self.temp_cookiefile.name
+
+        return ydl_opts
 
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             try:
@@ -403,9 +434,14 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': True,
+            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
             'cachedir': False
         }
+
+        if self.temp_cookiefile:
+            ydl_opts['cookiefile'] = self.temp_cookiefile.name
+
+        return ydl_opts
 
         try:
             info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{song_title}", download=False))
@@ -423,9 +459,16 @@ class Music(commands.Cog):
         
         ydl_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,  # Evita mostrar mensajes verbosos
+            'verbose': True,
+            'quiet': False,
+            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
             'cachedir': False
         }
+
+        if self.temp_cookiefile:
+            ydl_opts['cookiefile'] = self.temp_cookiefile.name
+
+        return ydl_opts
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
@@ -579,9 +622,15 @@ class Music(commands.Cog):
             'format': 'bestaudio/best',
             'verbose': True,
             'quiet': False,
-            'noplaylist': False,  # Cambia a False para procesar playlists
+            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
             'cachedir': False
         }
+
+        if self.temp_cookiefile:
+            ydl_opts['cookiefile'] = self.temp_cookiefile.name
+
+        return ydl_opts
+        
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"ytsearch:{title}", download=False)
