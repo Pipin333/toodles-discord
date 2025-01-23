@@ -53,6 +53,36 @@ class Music(commands.Cog):
         else:
             print("⚠️ No se encontraron cookies en las variables de entorno.")
 
+    async def cog_unload(self):
+        """Limpia el archivo temporal al descargar el Cog."""
+        if self.temp_cookiefile:
+            os.unlink(self.temp_cookiefile.name)
+            print("🗑️ Archivo de cookies temporal eliminado.")
+
+    def get_ydl_opts(self, noplaylist=True):
+        """
+        Genera las opciones para `yt_dlp`.
+
+        Args:
+            noplaylist (bool): Si se deben ignorar playlists o no.
+
+        Returns:
+            dict: Opciones para `yt_dlp`.
+        """
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': False,  # Cambia a True si quieres menos mensajes en consola
+            'verbose': True,            
+            'noplaylist': noplaylist,
+            'cachedir': False,
+        }
+
+        if self.temp_cookiefile:
+            ydl_opts['cookiefile'] = self.temp_cookiefile.name
+
+        return ydl_opts
+
+
     async def delete_user_message(self, ctx):
         await asyncio.sleep(0.1)
         try:
@@ -139,18 +169,7 @@ class Music(commands.Cog):
 
     async def play_youtube_playlist(self, ctx, playlist_url: str):
         """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano y reproduce la primera canción."""
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
-            'cachedir': False
-        }
-
-        if self.temp_cookiefile:
-            ydl_opts['cookiefile'] = self.temp_cookiefile.name
-
-        return ydl_opts
+        ydl_opts = self.get_ydl_opts()
 
         try:
             # Extraer información completa de la playlist
@@ -262,18 +281,7 @@ class Music(commands.Cog):
 
     async def play_youtube_url(self, ctx, video_url: str):
         """Reproduce una canción desde una URL de YouTube"""
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
-            'cachedir': False
-        }
-
-        if self.temp_cookiefile:
-            ydl_opts['cookiefile'] = self.temp_cookiefile.name
-
-        return ydl_opts
+        ydl_opts = self.get_ydl_opts()
 
         try:
             # Extraer información del video de YouTube
@@ -291,18 +299,7 @@ class Music(commands.Cog):
 
     async def play_youtube_playlist(self, ctx, playlist_url: str):
         """Añade todas las canciones de la playlist como placeholders, luego carga las URLs en segundo plano"""
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
-            'cachedir': False
-        }
-
-        if self.temp_cookiefile:
-            ydl_opts['cookiefile'] = self.temp_cookiefile.name
-
-        return ydl_opts
+        ydl_opts = self.get_ydl_opts(noplaylist=False)
 
         self.is_preloading = True  # Indicar que se están cargando canciones
         try:
@@ -331,18 +328,7 @@ class Music(commands.Cog):
             self.is_preloading = False  # Restablecer al finalizar
 
     async def search_and_queue_youtube(self, ctx, search: str):
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
-            'cachedir': False
-        }
-
-        if self.temp_cookiefile:
-            ydl_opts['cookiefile'] = self.temp_cookiefile.name
-
-        return ydl_opts
+        ydl_opts = self.get_ydl_opts()
 
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             try:
@@ -430,18 +416,7 @@ class Music(commands.Cog):
 
     async def load_song_url(self, song_title):
         """Carga la URL de una canción usando YouTube y extrae su duración."""
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
-            'cachedir': False
-        }
-
-        if self.temp_cookiefile:
-            ydl_opts['cookiefile'] = self.temp_cookiefile.name
-
-        return ydl_opts
+        ydl_opts = self.get_ydl_opts()
 
         try:
             info = await asyncio.to_thread(lambda: youtube_dl.YoutubeDL(ydl_opts).extract_info(f"ytsearch:{song_title}", download=False))
@@ -457,18 +432,7 @@ class Music(commands.Cog):
     async def search(self, ctx, *, query: str):
         """Busca canciones en YouTube y permite elegir entre las primeras coincidencias."""
         
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
-            'cachedir': False
-        }
-
-        if self.temp_cookiefile:
-            ydl_opts['cookiefile'] = self.temp_cookiefile.name
-
-        return ydl_opts
+        ydl_opts = self.get_ydl_opts()
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
@@ -618,19 +582,8 @@ class Music(commands.Cog):
             await ctx.send("La posición debe ser mayor que 0.")
             return
         
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'verbose': True,
-            'quiet': False,
-            'noplaylist': False,  # Procesar toda la playlist, no solo el primer video
-            'cachedir': False
-        }
+        ydl_opts = self.get_ydl_opts()
 
-        if self.temp_cookiefile:
-            ydl_opts['cookiefile'] = self.temp_cookiefile.name
-
-        return ydl_opts
-        
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"ytsearch:{title}", download=False)
