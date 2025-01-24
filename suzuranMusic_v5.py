@@ -43,7 +43,7 @@ class Music(commands.Cog):
 
         self.temp_cookiefile = None
         # Crear un archivo temporal para las cookies
-        cookies_content = os.getenv('COOKIES')
+        cookies_content = os.getenv('cookies')
         if cookies_content:
             # Crear un archivo temporal para almacenar las cookies
             self.temp_cookiefile = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8')
