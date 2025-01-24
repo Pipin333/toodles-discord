@@ -53,12 +53,6 @@ class Music(commands.Cog):
         else:
             print("⚠️ No se encontraron cookies en las variables de entorno.")
 
-    async def cog_unload(self):
-        """Limpia el archivo temporal al descargar el Cog."""
-        if self.temp_cookiefile:
-            os.unlink(self.temp_cookiefile.name)
-            print("🗑️ Archivo de cookies temporal eliminado.")
-
     def get_ydl_opts(self, noplaylist=True):
         """
         Genera las opciones para `yt_dlp`.
