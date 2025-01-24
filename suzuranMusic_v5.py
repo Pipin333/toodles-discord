@@ -75,6 +75,7 @@ class Music(commands.Cog):
             'verbose': True,            
             'noplaylist': noplaylist,
             'cachedir': False,
+            'default_search': 'ytsearch'
         }
 
         if self.temp_cookiefile:
