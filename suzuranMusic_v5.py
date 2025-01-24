@@ -46,12 +46,17 @@ class Music(commands.Cog):
         cookies_content = os.getenv('cookies')
         if cookies_content:
             # Crear un archivo temporal para almacenar las cookies
-            self.temp_cookiefile = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8')
-            self.temp_cookiefile.write(cookies_content)
-            self.temp_cookiefile.close()  # Asegurarse de que el contenido se guarde
+            try:
+                self.temp_cookiefile = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8')
+                self.temp_cookiefile.write(cookies_content)
+                self.temp_cookiefile.close()  # Asegúrate de cerrar el archivo después de escribir
+                print(f"Archivo temporal de cookies creado en: {self.temp_cookiefile.name}")
+            except Exception as e:
+                print(f"Error al crear el archivo temporal de cookies: {e}")
+                self.temp_cookiefile = None
 
-        else:
-            print("⚠️ No se encontraron cookies en las variables de entorno.")
+            else:
+                print("⚠️ No se encontraron cookies en las variables de entorno.")
 
     def get_ydl_opts(self, noplaylist=True):
         """
