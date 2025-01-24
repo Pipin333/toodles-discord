@@ -1,22 +1,25 @@
-import discord
-import random
-from discord.ext import commands, tasks
-import yt_dlp as youtube_dl
 import asyncio
+import concurrent.futures
+import discord
+import math
+import random
 import time
 import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
 import os
-import concurrent.futures
-import math
 import subprocess
+import yt_dlp as youtube_dl
+
 from database import setup_database, add_or_update_song
+from discord.ext import commands, tasks
+from spotipy.oauth2 import SpotifyClientCredentials
 
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
 SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
+COOKIES_CONTENT = os.getenv('cookies')
 
 class Music(commands.Cog):
     def __init__(self, bot):
+
         self.bot = bot
         self.song_queue = []
         self.current_song = None
@@ -26,9 +29,8 @@ class Music(commands.Cog):
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
         self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
         self.is_preloading = False  # Indicador para controlar la precarga
+        self.semaphore = asyncio.Semaphore(5)  # Limiting to 5 concurrent tasks
 
-        # Semaphore to limit concurrent tasks for loading songs
-        self.semaphore = asyncio.Semaphore(3)  # Limiting to 3 concurrent tasks
         setup_database()
 
         try:
@@ -43,12 +45,11 @@ class Music(commands.Cog):
 
         self.temp_cookiefile = None
         # Crear un archivo temporal para las cookies
-        cookies_content = os.getenv('cookies')
-        if cookies_content:
+        if COOKIES_CONTENT:
             # Crear un archivo temporal para almacenar las cookies
             try:
                 self.temp_cookiefile = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8')
-                self.temp_cookiefile.write(cookies_content)
+                self.temp_cookiefile.write(COOKIES_CONTENT)
                 self.temp_cookiefile.close()  # Asegúrate de cerrar el archivo después de escribir
                 print(f"Archivo temporal de cookies creado en: {self.temp_cookiefile.name}")
             except Exception as e:
@@ -81,7 +82,6 @@ class Music(commands.Cog):
             ydl_opts['cookiefile'] = self.temp_cookiefile.name
 
         return ydl_opts
-
 
     async def delete_user_message(self, ctx):
         await asyncio.sleep(0.1)
@@ -125,7 +125,6 @@ class Music(commands.Cog):
             "`td?shuffle` - Revuelve la cola de canciones actual.\n"
         )
         await ctx.send(help_message)
-
     
     @commands.command()
     async def play(self, ctx, search: str):
@@ -156,7 +155,6 @@ class Music(commands.Cog):
             await self.play_youtube_playlist(ctx, search)
         else:
             await self.search_and_queue_youtube(ctx, search)  # Búsqueda genérica
-
 
     @commands.command(name='p')
     async def play_short(self, ctx, *, search: str):
@@ -699,7 +697,6 @@ class Music(commands.Cog):
             await ctx.send(message)
         else:
             await ctx.send("No hay canciones en el historial.")
-
 
     @commands.command()
     async def leave(self, ctx):
