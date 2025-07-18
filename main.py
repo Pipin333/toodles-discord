@@ -14,8 +14,6 @@ bot = commands.Bot(command_prefix='td?', intents=intents, help_command=None)
 
 # ID del canal específico
 CHANNEL_ID_CLIPS = 1283061656817238027 # Reemplaza con el ID de tu canal
-respondFreakpay = False
-
 
 @bot.event
 async def on_ready():
@@ -68,10 +66,13 @@ async def on_message(message):
         
 async def main():
     try:
-        await bot.load_extension('suzuranMusic_v5')
+        await bot.load_extension('sznMusic')
         print("Cog 'suzuranMusic' cargado correctamente.")
-      #  await bot.load_extension('RoleChanger')
-      # print("Cog 'RoleChanger' cargado correctamente.")
+        await bot.load_extension('sznDB')
+        print("Cog 'suzuranDB' cargado correctamente.")
+        await bot.load_extension('sznUI')
+        print("Cog 'suzuranUI' cargado correctamente.")
+
     except Exception as e:
         print(f"Error al cargar cogs: {e}")
 
