@@ -28,8 +28,31 @@ if FERNET_KEY and os.path.exists("cookies_saved.txt"):
         with open("cookies_saved.txt", "rb") as f:
             encrypted = f.read()
             decrypted = fernet.decrypt(encrypted).decode()
-            os.environ["cookies"] = decrypted
-            print("🔐 Cookies cargadas desde archivo encriptado.")
+
+        # Conversión a Netscape si es JSON
+        def json_to_netscape(cookies):
+            lines = ["# Netscape HTTP Cookie File"]
+            for cookie in cookies:
+                domain = cookie.get("domain", ".youtube.com")
+                flag = "TRUE" if domain.startswith(".") else "FALSE"
+                path = cookie.get("path", "/")
+                secure = "TRUE" if cookie.get("secure", False) else "FALSE"
+                expires = str(cookie.get("expirationDate", 2145916800))
+                name = cookie["name"]
+                value = cookie["value"]
+                lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}")
+            return "\n".join(lines)
+
+        try:
+            parsed = json.loads(decrypted)
+            if isinstance(parsed, list) and all("name" in c for c in parsed):
+                decrypted = json_to_netscape(parsed)
+                print("🔁 Cookies JSON convertidas a Netscape en el arranque.")
+        except Exception:
+            pass
+
+        os.environ["cookies"] = decrypted
+        print("🔐 Cookies cargadas desde archivo encriptado.")
     except Exception as e:
         print(f"❌ Error al desencriptar cookies: {e}")
 
