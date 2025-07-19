@@ -51,7 +51,7 @@ class MusicCore(commands.Cog):
                 return None
 
             try:
-                temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt')
+                temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt', newline='\n')
                 temp.write(cookies_content)
                 temp.close()
                 print(f"✅ Cookies cargadas en archivo temporal: {temp.name}")
@@ -61,15 +61,15 @@ class MusicCore(commands.Cog):
                 return None
 
     def get_ydl_opts(self):
-            opts = {
-                'format': 'bestaudio/best',
-                'quiet': True,
-                'default_search': 'ytsearch',
-                'noplaylist': True
+            ydl_opts = {
+                "format": "bestaudio/best",
+                "noplaylist": True,
+                "quiet": True,
+                "cookiefile": cookie_path if cookie_path else None,
+                "outtmpl": "%(id)s.%(ext)s",
             }
-            if self.cookie_file:
-                opts['cookiefile'] = self.cookie_file
-            return opts
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(query, download=False)
 
     def format_duration(self, duration):
             hours, remainder = divmod(duration, 3600)
