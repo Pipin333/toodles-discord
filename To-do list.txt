@@ -1,8 +1,0 @@
-Implementacion a spotify       // 2 personas
-Implementacion a listas        // Santiago
-Mejorar interfaz de usuario    // Santiago
-Funcion ver cola               // Miki done
-Eliminar mensaje de autor      // Santiago done
-Eliminar canciones de cola     // Miki done
-Mover canciones de orden       // Miki done
-Solucionar problema con search // El que lo haga primero anashe
