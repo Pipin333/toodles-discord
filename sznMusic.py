@@ -24,6 +24,9 @@ class MusicCore(commands.Cog):
             client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
         self.cookie_file = self.setup_cookies()
         self.inactivity_check.start()
+        self.radio_seed_id = None
+        self.radio_mode = False
+        self.radio_temperature = 0.75
 
     def setup_cookies(self):
         cookies_content = os.getenv('cookies')
@@ -65,8 +68,8 @@ class MusicCore(commands.Cog):
             self.voice_client = await ctx.author.voice.channel.connect()
         return self.voice_client
 
-    async def add_song(self, ctx, title, url=None, duration=0):
-        song = {'title': title, 'url': url, 'duration': duration}
+    async def add_song(self, ctx, title, url=None, duration=0, origin="🎵 Añadida manualmente"):
+        song = {'title': title, 'url': url, 'duration': duration, 'origin': origin}
         self.song_queue.append(song)
         add_or_update_song(title, url or 'ytsearch:' + title, duration=duration)
         await ctx.send(f"🎶 Añadido a la cola: **{title}**")
@@ -79,19 +82,19 @@ class MusicCore(commands.Cog):
             info = ydl.extract_info(query, download=False)
             return info['entries'][0] if 'entries' in info else info
 
-    async def add_from_youtube(self, ctx, query):
+    async def add_from_youtube(self, ctx, query, origin="🔁 Recomendación por radio"):
         match = self.bot.musicdb.find_similar_song(query)
         if match:
-            await self.add_song(ctx, match.title, match.url, match.duration)
+            await self.add_song(ctx, match.title, match.url, match.duration, origin)
             return
         info = await self.search_youtube(query)
-        await self.add_song(ctx, info['title'], info['url'], info.get('duration', 0))
+        await self.add_song(ctx, info['title'], info['url'], info.get('duration', 0), origin)
 
     async def add_from_spotify(self, ctx, url):
         track_id = url.split("/")[-1].split("?")[0]
         track = self.sp.track(track_id)
         query = f"{track['name']} {track['artists'][0]['name']}"
-        await self.add_from_youtube(ctx, query)
+        await self.add_from_youtube(ctx, query, origin=f"🎵 Pedida desde Spotify por {ctx.author.name}")
 
     async def add_playlist_from_spotify(self, ctx, url):
         playlist_id = url.split("/")[-1].split("?")[0]
@@ -99,18 +102,21 @@ class MusicCore(commands.Cog):
         for item in results['items']:
             track = item['track']
             query = f"{track['name']} {track['artists'][0]['name']}"
-            await self.add_from_youtube(ctx, query)
+            await self.add_from_youtube(ctx, query, origin=f"🎵 Pedida desde playlist por {ctx.author.name}")
 
     async def play_next(self, ctx):
         if not self.song_queue:
-            await ctx.send("La cola está vacía.")
-            self.current_song = None
-            return
+            if self.radio_mode and self.radio_seed_id:
+                await self.expand_radio_queue(ctx)
+            else:
+                await ctx.send("La cola está vacía.")
+                self.current_song = None
+                return
 
         self.current_song = self.song_queue.pop(0)
         ui = self.bot.get_cog("MusicUI")
         if ui:
-            await ui.notify_now_playing(ctx, self.current_song['title'])
+            await ui.notify_now_playing(ctx, self.current_song['title'], self.current_song.get('origin'))
 
         self.bot.musicdb.log_song(self.current_song['title'])
 

@@ -7,15 +7,19 @@ class MusicUI(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def notify_now_playing(self, ctx, song_title):
+    async def notify_now_playing(self, ctx, song_title, origin=None):
         view = self.MusicControls(self.bot.get_cog("MusicCore"), ctx)
         view.add_item(Button(label="📜 Ver Cola", style=discord.ButtonStyle.link, url="https://discord.com/channels/{}/{}/".format(ctx.guild.id, ctx.channel.id)))
+        prefix = "🔁" if origin and "radio" in origin.lower() else "🎶"
         embed = discord.Embed(
-            title="🎶 Ahora Reproduciendo",
+            title=f"{prefix} Ahora Reproduciendo",
             description=f"**{song_title}**",
             color=discord.Color.green()
         )
-        embed.set_footer(text="Usa los botones para controlar la música o revisa la cola.")
+        if origin:
+            embed.set_footer(text=origin)
+        else:
+            embed.set_footer(text="Usa los botones para controlar la música o revisa la cola.")
         await ctx.send(embed=embed, view=view, delete_after=300)
 
     @commands.command()
