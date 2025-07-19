@@ -102,9 +102,10 @@ async def main():
         print("🧠 Cog 'sznDB' cargado.")
         await bot.load_extension('sznUI')
         print("🎛️ Cog 'sznUI' cargado.")
-    except Exception as e:
-        print(f"❌ Error al cargar cogs: {e}")
 
+    except Exception as e:
+        print(f"❌ Error al cargar cogs: {e.__class__.__name__}: {e}")
+        
     token = os.getenv("token_priv")
     if token:
         await bot.start(token)
