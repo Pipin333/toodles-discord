@@ -21,15 +21,13 @@ bot = commands.Bot(command_prefix='td?', intents=intents, help_command=None)
 CHANNEL_ID_CLIPS = 1283061656817238027
 
 # Configurar cookies al inicio si hay archivo encriptado
+# Configurar cookies al inicio si hay archivo encriptado
 FERNET_KEY = os.getenv("FERNET_KEY")
 if FERNET_KEY and os.path.exists("cookies_saved.txt"):
     try:
-        fernet = Fernet(FERNET_KEY)
-        with open("cookies_saved.txt", "rb") as f:
-            encrypted = f.read()
-            decrypted = fernet.decrypt(encrypted).decode()
+        from cryptography.fernet import Fernet
+        import json
 
-        # Conversión a Netscape si es JSON
         def json_to_netscape(cookies):
             lines = ["# Netscape HTTP Cookie File"]
             for cookie in cookies:
@@ -43,16 +41,22 @@ if FERNET_KEY and os.path.exists("cookies_saved.txt"):
                 lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}")
             return "\n".join(lines)
 
+        fernet = Fernet(FERNET_KEY)
+        with open("cookies_saved.txt", "rb") as f:
+            encrypted = f.read()
+            decrypted = fernet.decrypt(encrypted).decode()
+
+        # Si viene en JSON, convertir
         try:
             parsed = json.loads(decrypted)
             if isinstance(parsed, list) and all("name" in c for c in parsed):
                 decrypted = json_to_netscape(parsed)
-                print("🔁 Cookies JSON convertidas a Netscape en el arranque.")
+                print("🔁 Cookies JSON convertidas automáticamente al formato Netscape.")
         except Exception:
-            pass
+            pass  # no era JSON, seguir igual
 
         os.environ["cookies"] = decrypted
-        print("🔐 Cookies cargadas desde archivo encriptado.")
+        print("🔐 Cookies cargadas correctamente.")
     except Exception as e:
         print(f"❌ Error al desencriptar cookies: {e}")
 
@@ -83,7 +87,9 @@ async def on_message(message):
 
 @bot.command()
 async def setcookies(ctx):
-    """Carga nuevas cookies desde un archivo o desde el contenido del mensaje y las guarda encriptadas."""
+    """Carga cookies desde un archivo o mensaje, convierte JSON a Netscape si es necesario, y guarda encriptadas."""
+    import json
+
     if ctx.message.attachments:
         attachment = ctx.message.attachments[0]
         content = await attachment.read()
@@ -94,14 +100,32 @@ async def setcookies(ctx):
     if content.startswith("cookies ="):
         content = content.replace("cookies =", "").strip()
 
-    if not content:
-        await ctx.send("⚠️ Debes adjuntar un archivo o incluir el contenido de las cookies en el mensaje.")
-        return
+    def json_to_netscape(cookies):
+        lines = ["# Netscape HTTP Cookie File"]
+        for cookie in cookies:
+            domain = cookie.get("domain", ".youtube.com")
+            flag = "TRUE" if domain.startswith(".") else "FALSE"
+            path = cookie.get("path", "/")
+            secure = "TRUE" if cookie.get("secure", False) else "FALSE"
+            expires = str(cookie.get("expirationDate", 2145916800))
+            name = cookie["name"]
+            value = cookie["value"]
+            lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}")
+        return "\n".join(lines)
 
     try:
-        os.environ['cookies'] = content  # Reasigna la cookie para esta sesión
+        # Detectar y convertir JSON a Netscape si es necesario
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, list) and all("name" in c for c in parsed):
+                content = json_to_netscape(parsed)
+                await ctx.send("🔁 Cookies en formato JSON convertidas a formato Netscape automáticamente.")
+        except Exception:
+            pass  # no era JSON, continuar como texto plano
 
-        # Genera nuevo archivo temporal con las cookies
+        os.environ['cookies'] = content  # Asignar cookies convertidas al entorno
+
+        # Guardar como archivo temporal (para yt_dlp)
         temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt')
         temp.write(content)
         temp.close()
