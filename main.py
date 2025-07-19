@@ -87,9 +87,7 @@ async def on_message(message):
 
 @bot.command()
 async def setcookies(ctx):
-    """Carga cookies desde un archivo o mensaje, convierte JSON a Netscape si es necesario, y guarda encriptadas."""
-    import json
-
+    """Carga cookies desde mensaje o archivo y actualiza internamente."""
     if ctx.message.attachments:
         attachment = ctx.message.attachments[0]
         content = await attachment.read()
@@ -100,46 +98,19 @@ async def setcookies(ctx):
     if content.startswith("cookies ="):
         content = content.replace("cookies =", "").strip()
 
-    def json_to_netscape(cookies):
-        lines = ["# Netscape HTTP Cookie File"]
-        for cookie in cookies:
-            domain = cookie.get("domain", ".youtube.com")
-            flag = "TRUE" if domain.startswith(".") else "FALSE"
-            path = cookie.get("path", "/")
-            secure = "TRUE" if cookie.get("secure", False) else "FALSE"
-            expires = str(cookie.get("expirationDate", 2145916800))
-            name = cookie["name"]
-            value = cookie["value"]
-            lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}")
-        return "\n".join(lines)
+    if not content:
+        await ctx.send("⚠️ Debes incluir o adjuntar las cookies.")
+        return
 
-    try:
-        # Detectar y convertir JSON a Netscape si es necesario
-        try:
-            parsed = json.loads(content)
-            if isinstance(parsed, list) and all("name" in c for c in parsed):
-                content = json_to_netscape(parsed)
-                await ctx.send("🔁 Cookies en formato JSON convertidas a formato Netscape automáticamente.")
-        except Exception:
-            pass  # no era JSON, continuar como texto plano
+    os.environ['cookies'] = content
 
-        os.environ['cookies'] = content  # Asignar cookies convertidas al entorno
-
-        # Guardar como archivo temporal (para yt_dlp)
-        temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt')
-        temp.write(content)
-        temp.close()
-
-        if FERNET_KEY:
-            fernet = Fernet(FERNET_KEY)
-            with open("cookies_saved.txt", "wb") as f:
-                f.write(fernet.encrypt(content.encode()))
-            await ctx.send("✅ Cookies actualizadas y guardadas encriptadas.")
-        else:
-            await ctx.send("✅ Cookies actualizadas (no se guardaron porque no hay clave FERNET_KEY).")
-
-    except Exception as e:
-        await ctx.send(f"❌ Error al actualizar cookies: {e}")
+    # Llamamos a setup_cookies() de MusicCore
+    music = bot.get_cog("MusicCore")
+    if music:
+        music.cookie_file = music.setup_cookies()
+        await ctx.send("✅ Cookies cargadas y formateadas con éxito.")
+    else:
+        await ctx.send("❌ No se pudo acceder a MusicCore para aplicar cookies.")
 
 async def main():
     import traceback

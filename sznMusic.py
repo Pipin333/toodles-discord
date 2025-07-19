@@ -45,31 +45,69 @@ class MusicCore(commands.Cog):
             print(f"❌ Error al iniciar inactivity_check: {e}")
 
     def setup_cookies(self):
-            cookies_content = os.getenv('cookies')
-            if not cookies_content:
-                print("⚠️ No se encontraron cookies en las variables de entorno.")
-                return None
+        import json
 
+        cookies_content = os.getenv('cookies')
+        if not cookies_content:
+            print("⚠️ No se encontraron cookies en las variables de entorno.")
+            return None
+
+        def json_to_netscape(cookies):
+            lines = ["# Netscape HTTP Cookie File"]
+            for cookie in cookies:
+                domain = cookie.get("domain", ".youtube.com")
+                flag = "TRUE" if domain.startswith(".") else "FALSE"
+                path = cookie.get("path", "/")
+                secure = "TRUE" if cookie.get("secure", False) else "FALSE"
+                expires = str(cookie.get("expirationDate", 2145916800))
+                name = cookie["name"]
+                value = cookie["value"]
+                lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}")
+            return "\n".join(lines)
+
+        try:
             try:
-                temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt', newline='\n')
-                temp.write(cookies_content)
-                temp.close()
-                print(f"✅ Cookies cargadas en archivo temporal: {temp.name}")
-                return temp.name
-            except Exception as e:
-                print(f"❌ Error al crear archivo de cookies: {e}")
-                return None
+                parsed = json.loads(cookies_content)
+                if isinstance(parsed, list) and all("name" in c for c in parsed):
+                    cookies_content = json_to_netscape(parsed)
+                    print("🔁 Cookies en JSON convertidas a formato Netscape.")
+            except Exception:
+                pass
+
+            # Actualiza cookies en entorno
+            os.environ['cookies'] = cookies_content
+
+            # Guarda archivo temporal para yt_dlp
+            temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt', newline='\n')
+            temp.write(cookies_content)
+            temp.close()
+
+            # Encripta y guarda persistencia
+            fernet_key = os.getenv("FERNET_KEY")
+            if fernet_key:
+                from cryptography.fernet import Fernet
+                fernet = Fernet(fernet_key)
+                with open("cookies_saved.txt", "wb") as f:
+                    f.write(fernet.encrypt(cookies_content.encode()))
+                print("🔐 Cookies actualizadas y encriptadas.")
+            else:
+                print("☁️ Cookies actualizadas (no encriptadas).")
+
+            print(f"✅ Cookies cargadas en archivo temporal: {temp.name}")
+            return temp.name
+
+        except Exception as e:
+            print(f"❌ Error al configurar cookies: {e}")
+            return None
 
     def get_ydl_opts(self):
-            ydl_opts = {
-                "format": "bestaudio/best",
-                "noplaylist": True,
-                "quiet": True,
-                "cookiefile": self.cookie_file,  # ✅ Usa el archivo generado por setup_cookies()
-                "outtmpl": "%(id)s.%(ext)s",
-            }
-            with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(query, download=False)
+        return {
+            "format": "bestaudio/best",
+            "noplaylist": True,
+            "quiet": True,
+            "cookiefile": self.cookie_file,  # ✅ Usa la ruta generada por setup_cookies()
+            "outtmpl": "%(id)s.%(ext)s",
+        }
 
     def format_duration(self, duration):
             hours, remainder = divmod(duration, 3600)
