@@ -3,6 +3,8 @@ from discord.ext import commands
 import logging
 import os
 import asyncio
+import tempfile
+from cryptography.fernet import Fernet
 
 # Configuración básica de logs
 logging.basicConfig(level=logging.INFO)
@@ -18,36 +20,22 @@ bot = commands.Bot(command_prefix='td?', intents=intents, help_command=None)
 # ID del canal restringido a adjuntos
 CHANNEL_ID_CLIPS = 1283061656817238027
 
+# Configurar cookies al inicio si hay archivo encriptado
+FERNET_KEY = os.getenv("FERNET_KEY")
+if FERNET_KEY and os.path.exists("cookies_saved.txt"):
+    try:
+        fernet = Fernet(FERNET_KEY)
+        with open("cookies_saved.txt", "rb") as f:
+            encrypted = f.read()
+            decrypted = fernet.decrypt(encrypted).decode()
+            os.environ["cookies"] = decrypted
+            print("🔐 Cookies cargadas desde archivo encriptado.")
+    except Exception as e:
+        print(f"❌ Error al desencriptar cookies: {e}")
+
 @bot.event
 async def on_ready():
     print(f'✅ Conectado como {bot.user.name}')
-
-@commands.command()
-async def setcookies(self, ctx):
-    """Carga nuevas cookies desde un archivo o desde el contenido del mensaje."""
-    if ctx.message.attachments:
-        attachment = ctx.message.attachments[0]
-        content = await attachment.read()
-        content = content.decode('utf-8')
-    else:
-        content = ctx.message.content.replace("td?setcookies", "").strip()
-
-    if not content:
-        await ctx.send("⚠️ Debes adjuntar un archivo o incluir el contenido de las cookies en el mensaje.")
-        return
-
-    try:
-        os.environ['cookies'] = content  # Reasigna la cookie para esta sesión
-
-        # Genera nuevo archivo temporal con las cookies
-        temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt')
-        temp.write(content)
-        temp.close()
-
-        self.cookie_file = temp.name  # Actualiza ruta activa
-        await ctx.send("✅ Cookies actualizadas exitosamente.")
-    except Exception as e:
-        await ctx.send(f"❌ Error al actualizar cookies: {e}")
 
 @bot.event
 async def on_message(message):
@@ -69,6 +57,39 @@ async def on_message(message):
                 print(f"⚠️ Error al intentar eliminar mensaje: {e}")
 
     await bot.process_commands(message)
+
+@bot.command()
+async def setcookies(ctx):
+    """Carga nuevas cookies desde un archivo o desde el contenido del mensaje y las guarda encriptadas."""
+    if ctx.message.attachments:
+        attachment = ctx.message.attachments[0]
+        content = await attachment.read()
+        content = content.decode('utf-8')
+    else:
+        content = ctx.message.content.replace("td?setcookies", "").strip()
+
+    if not content:
+        await ctx.send("⚠️ Debes adjuntar un archivo o incluir el contenido de las cookies en el mensaje.")
+        return
+
+    try:
+        os.environ['cookies'] = content  # Reasigna la cookie para esta sesión
+
+        # Genera nuevo archivo temporal con las cookies
+        temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt')
+        temp.write(content)
+        temp.close()
+
+        if FERNET_KEY:
+            fernet = Fernet(FERNET_KEY)
+            with open("cookies_saved.txt", "wb") as f:
+                f.write(fernet.encrypt(content.encode()))
+            await ctx.send("✅ Cookies actualizadas y guardadas encriptadas.")
+        else:
+            await ctx.send("✅ Cookies actualizadas (no se guardaron porque no hay clave FERNET_KEY).")
+
+    except Exception as e:
+        await ctx.send(f"❌ Error al actualizar cookies: {e}")
 
 async def main():
     try:
