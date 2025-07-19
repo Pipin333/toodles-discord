@@ -99,7 +99,14 @@ class MusicCore(commands.Cog):
                 return info['entries'][0] if 'entries' in info else info
 
     async def add_from_youtube(self, ctx, query, origin="🔁 Recomendación por radio"):
-            match = self.bot.musicdb.find_similar_song(query)
+            musicdb = getattr(self.bot, "musicdb", None)
+            print(f"🔍 Acceso a self.bot.musicdb: {hasattr(self.bot, 'musicdb')}")
+            if musicdb:
+                match = musicdb.find_similar_song(query)
+            else:
+                print("⚠️ self.bot.musicdb no está disponible aún.")
+                match = None
+            
             if match:
                 await self.add_song(ctx, match.title, match.url, match.duration, origin)
                 return

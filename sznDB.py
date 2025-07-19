@@ -216,4 +216,5 @@ class MusicDB(commands.Cog):
 async def setup(bot):
     musicdb = MusicDB(bot)
     await bot.add_cog(musicdb)
-    bot.musicdb = musicdb
+    bot.musicdb = musicdb  # ✅ esta línea es CLAVE
+    print("🧠 sznDB.setup() ejecutado, asignando bot.musicdb")
