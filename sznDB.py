@@ -212,6 +212,8 @@ class MusicDB(commands.Cog):
         )
         embed.set_footer(text="Basado en estadísticas del bot")
         return embed
-
+    
 async def setup(bot):
-    await bot.add_cog(MusicDB(bot))
+    musicdb = MusicDB(bot)
+    await bot.add_cog(musicdb)
+    bot.musicdb = musicdb
