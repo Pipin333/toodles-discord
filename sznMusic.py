@@ -2,7 +2,7 @@ print("🧪 sznMusic.py ha sido leído por Python")
 
 import discord
 from discord.ext import commands, tasks
-import yt_dlp as youtube_dl
+from yt_dlp import YoutubeDL
 import os
 import tempfile
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -94,7 +94,7 @@ class MusicCore(commands.Cog):
 
     async def search_youtube(self, query):
             ydl_opts = self.get_ydl_opts()
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(query, download=False)
                 return info['entries'][0] if 'entries' in info else info
 
