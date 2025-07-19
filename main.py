@@ -68,6 +68,9 @@ async def setcookies(ctx):
     else:
         content = ctx.message.content.replace("td?setcookies", "").strip()
 
+    if content.startswith("cookies ="):
+        content = content.replace("cookies =", "").strip()
+
     if not content:
         await ctx.send("⚠️ Debes adjuntar un archivo o incluir el contenido de las cookies en el mensaje.")
         return
