@@ -1,11 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
-import asyncio
 import os
-import time
-import random
-import math
 import tempfile
 from spotipy.oauth2 import SpotifyClientCredentials
 import spotipy
@@ -14,19 +10,36 @@ from database import add_or_update_song
 SPOTIFY_CLIENT_ID = os.getenv('client_id')
 SPOTIFY_CLIENT_SECRET = os.getenv('client_secret')
 
-class MusicCore(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        self.song_queue = []
-        self.current_song = None
-        self.voice_client = None
+def __init__(self, bot):
+    self.bot = bot
+    self.song_queue = []
+    self.current_song = None
+    self.voice_client = None
+    self.radio_seed_id = None
+    self.radio_mode = False
+    self.radio_temperature = 0.75
+
+    try:
+        print("🔁 Iniciando conexión con Spotify...")
         self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-            client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
+            client_id=SPOTIFY_CLIENT_ID,
+            client_secret=SPOTIFY_CLIENT_SECRET
+        ))
+        print("✅ Conexión a Spotify establecida.")
+    except Exception as e:
+        print(f"❌ Error al conectar con Spotify: {e}")
+        self.sp = None
+
+    try:
         self.cookie_file = self.setup_cookies()
+    except Exception as e:
+        print(f"❌ Error al preparar cookies: {e}")
+        self.cookie_file = None
+
+    try:
         self.inactivity_check.start()
-        self.radio_seed_id = None
-        self.radio_mode = False
-        self.radio_temperature = 0.75
+    except Exception as e:
+        print(f"❌ Error al iniciar inactivity_check: {e}")
 
     def setup_cookies(self):
         cookies_content = os.getenv('cookies')
