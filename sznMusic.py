@@ -65,7 +65,7 @@ class MusicCore(commands.Cog):
                 "format": "bestaudio/best",
                 "noplaylist": True,
                 "quiet": True,
-                "cookiefile": cookie_path if cookie_path else None,
+                "cookiefile": self.cookie_file,  # ✅ Usa el archivo generado por setup_cookies()
                 "outtmpl": "%(id)s.%(ext)s",
             }
             with YoutubeDL(ydl_opts) as ydl:
