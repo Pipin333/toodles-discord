@@ -67,8 +67,6 @@ def get_top_songs(limit=10, offset=0):
         )
     return top_songs
 
-    return top_songs
-
 # Función para configurar la base de datos (aunque ya se crea al inicio)
 def setup_database():
     """Crea las tablas si no existen."""

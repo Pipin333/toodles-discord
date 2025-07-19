@@ -142,7 +142,6 @@ class MusicDB(commands.Cog):
                 await ctx.send("⚠️ No se pudo generar recomendaciones basadas en el top global.")
             return
 
-
         core = self.bot.get_cog("MusicCore")
         if not core:
             await ctx.send("❌ Módulo de música no encontrado.")
