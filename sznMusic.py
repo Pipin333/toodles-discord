@@ -82,6 +82,12 @@ class MusicCore(commands.Cog):
             temp.write(cookies_content)
             temp.close()
 
+            # ✅ Revisión del archivo generado
+            with open(temp.name, "r", encoding="utf-8") as f:
+                preview = f.read()
+                print("📄 Preview archivo cookies:")
+                print(preview[:500])
+
             # Encripta y guarda persistencia
             fernet_key = os.getenv("FERNET_KEY")
             if fernet_key:
@@ -107,6 +113,7 @@ class MusicCore(commands.Cog):
             "quiet": True,
             "cookiefile": self.cookie_file,  # ✅ Usa la ruta generada por setup_cookies()
             "outtmpl": "%(id)s.%(ext)s",
+            "default_search": "ytsearch",
         }
 
     def format_duration(self, duration):
