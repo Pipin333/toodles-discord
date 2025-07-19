@@ -95,11 +95,18 @@ async def setcookies(ctx):
         await ctx.send(f"❌ Error al actualizar cookies: {e}")
 
 async def main():
+    import traceback
+
     try:
         await bot.load_extension('sznMusic')
-        print("🎵 Cog 'sznMusic' cargado.")
+        print("🧠 Cog 'sznMusic' cargado.")
+    except Exception as e:
+        print(f"❌ Error cargando sznMusic: {e.__class__.__name__}: {e}")
+        traceback.print_exc()
+
         await bot.load_extension('sznDB')
         print("🧠 Cog 'sznDB' cargado.")
+
         await bot.load_extension('sznUI')
         print("🎛️ Cog 'sznUI' cargado.")
 

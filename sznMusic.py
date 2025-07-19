@@ -235,6 +235,9 @@ class MusicCore(commands.Cog):
             self.radio_temperature = max(0.0, min(temperatura, 1.0))
             await ctx.send(f"🔁 Modo radio activado (temperatura {self.radio_temperature:.2f}). Se mantendrá la cola con canciones similares.")
             await self.expand_radio_queue(ctx)
-            
+
+
+print("🧪 Ejecutando setup() de sznMusic")
+
 async def setup(bot):
     await bot.add_cog(MusicCore(bot))
