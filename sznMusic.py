@@ -1,3 +1,5 @@
+print("🧪 sznMusic.py ha sido leído por Python")
+
 import discord
 from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
@@ -41,7 +43,7 @@ def __init__(self, bot):
     except Exception as e:
         print(f"❌ Error al iniciar inactivity_check: {e}")
 
-    def setup_cookies(self):
+def setup_cookies(self):
         cookies_content = os.getenv('cookies')
         if not cookies_content:
             print("⚠️ No se encontraron cookies en las variables de entorno.")
@@ -57,7 +59,7 @@ def __init__(self, bot):
             print(f"❌ Error al crear archivo de cookies: {e}")
             return None
 
-    def get_ydl_opts(self):
+def get_ydl_opts(self):
         opts = {
             'format': 'bestaudio/best',
             'quiet': True,
@@ -68,12 +70,12 @@ def __init__(self, bot):
             opts['cookiefile'] = self.cookie_file
         return opts
 
-    def format_duration(self, duration):
+def format_duration(self, duration):
         hours, remainder = divmod(duration, 3600)
         minutes, seconds = divmod(remainder, 60)
         return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
-    async def connect_to_voice(self, ctx):
+async def connect_to_voice(self, ctx):
         if not ctx.author.voice:
             await ctx.send("Debes estar en un canal de voz para usar este comando.")
             return None
@@ -81,7 +83,7 @@ def __init__(self, bot):
             self.voice_client = await ctx.author.voice.channel.connect()
         return self.voice_client
 
-    async def add_song(self, ctx, title, url=None, duration=0, origin="🎵 Añadida manualmente"):
+async def add_song(self, ctx, title, url=None, duration=0, origin="🎵 Añadida manualmente"):
         song = {'title': title, 'url': url, 'duration': duration, 'origin': origin}
         self.song_queue.append(song)
         add_or_update_song(title, url or 'ytsearch:' + title, duration=duration)
@@ -89,13 +91,13 @@ def __init__(self, bot):
         if not self.current_song:
             await self.play_next(ctx)
 
-    async def search_youtube(self, query):
+async def search_youtube(self, query):
         ydl_opts = self.get_ydl_opts()
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(query, download=False)
             return info['entries'][0] if 'entries' in info else info
 
-    async def add_from_youtube(self, ctx, query, origin="🔁 Recomendación por radio"):
+async def add_from_youtube(self, ctx, query, origin="🔁 Recomendación por radio"):
         match = self.bot.musicdb.find_similar_song(query)
         if match:
             await self.add_song(ctx, match.title, match.url, match.duration, origin)
@@ -103,13 +105,13 @@ def __init__(self, bot):
         info = await self.search_youtube(query)
         await self.add_song(ctx, info['title'], info['url'], info.get('duration', 0), origin)
 
-    async def add_from_spotify(self, ctx, url):
+async def add_from_spotify(self, ctx, url):
         track_id = url.split("/")[-1].split("?")[0]
         track = self.sp.track(track_id)
         query = f"{track['name']} {track['artists'][0]['name']}"
         await self.add_from_youtube(ctx, query, origin=f"🎵 Pedida desde Spotify por {ctx.author.name}")
 
-    async def add_playlist_from_spotify(self, ctx, url):
+async def add_playlist_from_spotify(self, ctx, url):
         playlist_id = url.split("/")[-1].split("?")[0]
         results = self.sp.playlist_tracks(playlist_id)
         for item in results['items']:
@@ -117,7 +119,7 @@ def __init__(self, bot):
             query = f"{track['name']} {track['artists'][0]['name']}"
             await self.add_from_youtube(ctx, query, origin=f"🎵 Pedida desde playlist por {ctx.author.name}")
 
-    async def play_next(self, ctx):
+async def play_next(self, ctx):
         if not self.song_queue:
             if self.radio_mode and self.radio_seed_id:
                 await self.expand_radio_queue(ctx)
@@ -143,8 +145,8 @@ def __init__(self, bot):
             after=after_playing
         )
 
-    @commands.command(name="p")
-    async def play(self, ctx, *, query):
+@commands.command(name="p")
+async def play(self, ctx, *, query):
         await self.connect_to_voice(ctx)
         if "spotify.com/track" in query:
             await self.add_from_spotify(ctx, query)
@@ -153,38 +155,38 @@ def __init__(self, bot):
         else:
             await self.add_from_youtube(ctx, query)
 
-    @commands.command()
-    async def skip(self, ctx):
+@commands.command()
+async def skip(self, ctx):
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.stop()
 
-    @commands.command()
-    async def pause(self, ctx):
+@commands.command()
+async def pause(self, ctx):
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.pause()
             await ctx.send("⏸️ Canción pausada.")
 
-    @commands.command()
-    async def resume(self, ctx):
+@commands.command()
+async def resume(self, ctx):
         if self.voice_client and self.voice_client.is_paused():
             self.voice_client.resume()
             await ctx.send("▶️ Canción reanudada.")
 
-    @commands.command()
-    async def clear(self, ctx):
+@commands.command()
+async def clear(self, ctx):
         self.song_queue.clear()
         await ctx.send("🧹 Cola de canciones limpiada.")
 
-    @commands.command(name="np")
-    async def now_playing(self, ctx):
+@commands.command(name="np")
+async def now_playing(self, ctx):
         if self.current_song:
             duration_str = self.format_duration(self.current_song.get('duration', 0))
             await ctx.send(f"🎵 Reproduciendo: **{self.current_song['title']}** ({duration_str})")
         else:
             await ctx.send("No hay ninguna canción en reproducción.")
 
-    @commands.command()
-    async def queue(self, ctx):
+@commands.command()
+async def queue(self, ctx):
         if not self.song_queue:
             await ctx.send("🎵 La cola está vacía.")
             return
@@ -195,16 +197,16 @@ def __init__(self, bot):
             msg += f"{i}. **{song['title']}** ({duration})\n"
         await ctx.send(msg)
 
-    @tasks.loop(seconds=60)
-    async def inactivity_check(self):
+@tasks.loop(seconds=60)
+async def inactivity_check(self):
         if self.voice_client and not self.voice_client.is_playing() and not self.song_queue:
             await self.voice_client.disconnect()
             self.voice_client = None
             self.current_song = None
             print("✅ Desconectado por inactividad.")
 
-    @commands.command()
-    async def radio(self, ctx, *, arg: str = "0.75"):
+@commands.command()
+async def radio(self, ctx, *, arg: str = "0.75"):
         if arg.lower() == "off":
             self.radio_mode = False
             self.radio_seed_id = None
