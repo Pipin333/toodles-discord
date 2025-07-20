@@ -219,4 +219,5 @@ async def setup(bot):
     musicdb = MusicDB(bot)
     await bot.add_cog(musicdb)
     bot.musicdb = musicdb  # ✅ esta línea es CLAVE
+    preload_top_songs_cache(limit=10)
     print("🧠 sznDB.setup() ejecutado, asignando bot.musicdb")
