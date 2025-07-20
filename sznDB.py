@@ -23,7 +23,6 @@ class MusicDB(commands.Cog):
         self.bot = bot
         preload_top_songs_cache()
         self.last_played = []  # historial reciente en memoria
-        bot.musicdb = self
         Base.metadata.create_all(session.bind)
 
     def log_song(self, title):
