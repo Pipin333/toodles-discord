@@ -6,3 +6,4 @@ spotipy
 psycopg2-binary
 sqlalchemy
 cryptography
+rapidfuzz

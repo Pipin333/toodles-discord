@@ -3,7 +3,6 @@ from discord.ext import commands
 import logging
 import os
 import asyncio
-import tempfile
 from sznUtils import is_json_cookies, json_to_netscape, check_cookies_format
 from cryptography.fernet import Fernet
 from sznDB import save_config, load_config
