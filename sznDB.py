@@ -1,12 +1,19 @@
 from discord.ext import commands
 import discord
-from database import get_top_songs, add_or_update_song, preload_top_songs_cache, session, Song
+from database import (
+    get_top_songs,
+    add_or_update_song,
+    preload_top_songs_cache,
+    session,
+    Song,
+    AppConfig,
+    Base as DBBase
+)
 from rapidfuzz import process
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import declarative_base
 from datetime import datetime
 from cryptography.fernet import Fernet
-from database import Session, AppConfig
 import os
 
 Base = declarative_base()
@@ -23,7 +30,7 @@ class MusicDB(commands.Cog):
         self.bot = bot
         preload_top_songs_cache()
         self.last_played = []  # historial reciente en memoria
-        Base.metadata.create_all(session.bind)
+        DBBase.metadata.create_all(session.bind)
 
     def log_song(self, title):
         self.last_played.insert(0, title)
