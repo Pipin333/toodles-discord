@@ -4,7 +4,10 @@ import logging
 import os
 import asyncio
 import tempfile
+from sznUtils import is_json_cookies, json_to_netscape, check_cookies_format
 from cryptography.fernet import Fernet
+from sznDB import save_config, load_config
+import traceback
 
 # Configuración básica de logs
 logging.basicConfig(level=logging.INFO)
@@ -19,46 +22,6 @@ bot = commands.Bot(command_prefix='td?', intents=intents, help_command=None)
 
 # ID del canal restringido a adjuntos
 CHANNEL_ID_CLIPS = 1283061656817238027
-
-# Configurar cookies al inicio si hay archivo encriptado
-# Configurar cookies al inicio si hay archivo encriptado
-FERNET_KEY = os.getenv("FERNET_KEY")
-if FERNET_KEY and os.path.exists("cookies_saved.txt"):
-    try:
-        from cryptography.fernet import Fernet
-        import json
-
-        def json_to_netscape(cookies):
-            lines = ["# Netscape HTTP Cookie File"]
-            for cookie in cookies:
-                domain = cookie.get("domain", ".youtube.com")
-                flag = "TRUE" if domain.startswith(".") else "FALSE"
-                path = cookie.get("path", "/")
-                secure = "TRUE" if cookie.get("secure", False) else "FALSE"
-                expires = str(cookie.get("expirationDate", 2145916800))
-                name = cookie["name"]
-                value = cookie["value"]
-                lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}")
-            return "\n".join(lines)
-
-        fernet = Fernet(FERNET_KEY)
-        with open("cookies_saved.txt", "rb") as f:
-            encrypted = f.read()
-            decrypted = fernet.decrypt(encrypted).decode()
-
-        # Si viene en JSON, convertir
-        try:
-            parsed = json.loads(decrypted)
-            if isinstance(parsed, list) and all("name" in c for c in parsed):
-                decrypted = json_to_netscape(parsed)
-                print("🔁 Cookies JSON convertidas automáticamente al formato Netscape.")
-        except Exception:
-            pass  # no era JSON, seguir igual
-
-        os.environ["cookies"] = decrypted
-        print("🔐 Cookies cargadas correctamente.")
-    except Exception as e:
-        print(f"❌ Error al desencriptar cookies: {e}")
 
 @bot.event
 async def on_ready():
@@ -85,9 +48,10 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
+
 @bot.command()
 async def setcookies(ctx):
-    """Carga cookies desde mensaje o archivo y actualiza internamente."""
+    """Carga cookies desde mensaje o archivo y las convierte si es necesario."""
     if ctx.message.attachments:
         attachment = ctx.message.attachments[0]
         content = await attachment.read()
@@ -95,46 +59,52 @@ async def setcookies(ctx):
     else:
         content = ctx.message.content.replace("td?setcookies", "").strip()
 
-    if content.startswith("cookies ="):
-        content = content.replace("cookies =", "").strip()
+    if content.lower().startswith("cookies ="):
+        content = content[len("cookies ="):].strip()
 
-    if not content:
-        await ctx.send("⚠️ Debes incluir o adjuntar las cookies.")
+    if is_json_cookies(content):
+        try:
+            content = json_to_netscape(content)
+            await ctx.send("🔁 Cookies JSON convertidas a formato Netscape.")
+        except Exception as e:
+            await ctx.send(f"❌ Error al convertir cookies: {e}")
+            return
+
+    # Validar formato antes de guardar
+    check = check_cookies_format(content)
+    if not check.startswith("✅"):
+        await ctx.send(check)
         return
+    
+    save_config("cookies", content)
+    os.environ["cookies"] = content
 
-    os.environ['cookies'] = content
-
-    # Llamamos a setup_cookies() de MusicCore
+    # Reaplicar en runtime
     music = bot.get_cog("MusicCore")
     if music:
         music.cookie_file = music.setup_cookies()
-        await ctx.send("✅ Cookies cargadas y formateadas con éxito.")
-    else:
-        await ctx.send("❌ No se pudo acceder a MusicCore para aplicar cookies.")
 
 async def main():
-    import traceback
+
+    cookies = load_config("cookies")
+    if cookies:
+        os.environ["cookies"] = cookies
+        print("🔐 Cookies cargadas desde la base de datos.")
 
     try:
 
         await bot.load_extension('sznDB')
         print("🧠 Cog 'sznDB' cargado.")
 
-    except Exception as e:
-        print(f"❌ Error al cargar cogs: {e.__class__.__name__}: {e}")
-
         await bot.load_extension('sznMusic')
-        print("🧠 Cog 'sznMusic' cargado.")
-
-    except Exception as e:
-        print(f"❌ Error cargando sznMusic: {e.__class__.__name__}: {e}")
-        traceback.print_exc()
+        print("🎵 Cog 'sznMusic' cargado.")
 
         await bot.load_extension('sznUI')
         print("🎛️ Cog 'sznUI' cargado.")
 
     except Exception as e:
         print(f"❌ Error al cargar cogs: {e.__class__.__name__}: {e}")
+        traceback.print_exc()
         
     token = os.getenv("token_priv")
     if token:

@@ -25,6 +25,12 @@ class Song(Base):
 
     def __repr__(self):
         return f"<Song(id={self.id}, title={self.title}, artist={self.artist}, played_count={self.played_count})>"
+    
+class AppConfig(Base):
+    __tablename__ = "config"
+
+    key = Column(String, primary_key=True)
+    value = Column(String)
 
 # Crear las tablas en la base de datos si no existen
 Base.metadata.create_all(engine)

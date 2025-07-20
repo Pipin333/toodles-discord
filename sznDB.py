@@ -5,6 +5,9 @@ from rapidfuzz import process
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import declarative_base
 from datetime import datetime
+from cryptography.fernet import Fernet
+from database import Session, AppConfig
+import os
 
 Base = declarative_base()
 
@@ -213,6 +216,31 @@ class MusicDB(commands.Cog):
         embed.set_footer(text="Basado en estadísticas del bot")
         return embed
     
+    FERNET_KEY = os.getenv("FERNET_KEY")
+    fernet = Fernet(FERNET_KEY) if FERNET_KEY else None
+
+    def save_config(key: str, value: str):
+        if fernet:
+            value = fernet.encrypt(value.encode()).decode()
+        with Session.begin() as session:
+            existing = session.query(AppConfig).filter_by(key=key).first()
+            if existing:
+                existing.value = value
+            else:
+                session.add(AppConfig(key=key, value=value))
+
+    def load_config(key: str) -> str | None:
+        with Session.begin() as session:
+            entry = session.query(AppConfig).filter_by(key=key).first()
+            if entry:
+                if fernet:
+                    try:
+                        return fernet.decrypt(entry.value.encode()).decode()
+                    except Exception as e:
+                        print(f"❌ Error al desencriptar valor de {key}: {e}")
+                        return None
+                return entry.value
+        return None
 async def setup(bot):
     musicdb = MusicDB(bot)
     await bot.add_cog(musicdb)
