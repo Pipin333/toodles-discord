@@ -166,28 +166,6 @@ class MusicDB(commands.Cog):
         else:
             await ctx.send("⚠️ No se pudo generar recomendaciones basadas en canciones favoritas.")
 
-    @commands.command()
-    async def expand_radio_queue(self, ctx, seed_id=None, temperature=0.75):
-        """Genera canciones similares usando Spotify y las agrega a la cola."""
-        try:
-            core = self.bot.get_cog("MusicCore")
-            if not core:
-                await ctx.send("❌ No se encontró el módulo de música.")
-                return
-            recs = core.sp.recommendations(
-                seed_tracks=[seed_id],
-                limit=5,
-                target_valence=temperature,
-                target_energy=temperature
-            )
-            await ctx.send("🔁 Añadiendo canciones al modo radio...")
-            for track in recs['tracks']:
-                title = track['name']
-                artist = track['artists'][0]['name']
-                query = f"{title} {artist}"
-                await core.add_from_youtube(ctx, query)
-        except Exception as e:
-            await ctx.send(f"⚠️ Error al expandir la cola de radio: {e}")
 
     @commands.command(name="historial")
     async def historial(self, ctx):

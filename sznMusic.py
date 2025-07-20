@@ -241,6 +241,31 @@ class MusicCore(commands.Cog):
             await ctx.send(f"🔁 Modo radio activado (temperatura {self.radio_temperature:.2f}). Se mantendrá la cola con canciones similares.")
             await self.expand_radio_queue(ctx)
 
+    async def expand_radio_queue(self, ctx, seed_id=None, temperature=0.75):
+        """Genera canciones similares usando Spotify y las agrega a la cola."""
+        try:
+            if not seed_id:
+                seed_id = self.radio_seed_id
+            if not seed_id:
+                await ctx.send("❌ No hay una canción base para generar recomendaciones.")
+                return
+
+            recs = self.sp.recommendations(
+                seed_tracks=[seed_id],
+                limit=5,
+                target_valence=temperature,
+                target_energy=temperature
+            )
+            await ctx.send("🎧 Añadiendo canciones sugeridas al modo radio...")
+
+            for track in recs['tracks']:
+                title = track['name']
+                artist = track['artists'][0]['name']
+                query = f"{title} {artist}"
+                await self.add_from_youtube(ctx, query)
+
+        except Exception as e:
+            await ctx.send(f"⚠️ Error al expandir la cola de radio: {e}")            
 
 print("🧪 Ejecutando setup() de sznMusic")
 
