@@ -3,9 +3,8 @@ from discord.ext import commands
 import logging
 import os
 import asyncio
-from sznUtils import is_json_cookies, json_to_netscape, check_cookies_format
+from sznUtils import save_config, load_config, is_json_cookies, json_to_netscape, check_cookies_format
 from cryptography.fernet import Fernet
-from sznDB import save_config, load_config
 import traceback
 
 # Configuración básica de logs
