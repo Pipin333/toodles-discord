@@ -62,10 +62,28 @@ class QueueManager:
 class QueueManagerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.queue_manager = QueueManager()
+        self.manager = QueueManager()
 
-    def add_song(self, song):
-        return self.QueueManager.add_song(song)
+    def add_song(self, song_data):
+        return self.manager.add_song(song_data)
+
+    def remove_song(self, index):
+        return self.manager.remove_song(index)
+
+    def move_song(self, from_index, to_index):
+        return self.manager.move_song(from_index, to_index)
+
+    def shuffle_queue(self):
+        return self.manager.shuffle_queue()
+
+    def clear_queue(self):
+        return self.manager.clear_queue()
+
+    def get_next_song(self):
+        return self.manager.get_next_song()
+
+    def view_queue(self):
+        return self.manager.view_queue()
 
     @commands.command(name="queue")
     async def view_queue(self, ctx):
