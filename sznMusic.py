@@ -54,6 +54,12 @@ class MusicCore(commands.Cog):
             'cookiefile': self.cookie_file if self.cookie_file else None,
             "default_search": "ytsearch",
         }
+    
+    def get_queue_manager(self):
+        qm = self.bot.get_cog("QueueManagerCog")
+        if not qm:
+            raise RuntimeError("❌ QueueManagerCog no está disponible.")
+        return qm
 
     def format_duration(self, duration):
         hours, remainder = divmod(duration, 3600)
@@ -75,7 +81,7 @@ class MusicCore(commands.Cog):
 
     async def add_song(self, ctx, title, url=None, duration=0, origin="🎵 Añadida manualmente"):
         song = {'title': title, 'url': url, 'duration': duration, 'origin': origin}
-        self.queue_manager.add_song(song)
+        self.get_queue_manager().add_song(song)
         add_or_update_song(title, url or 'ytsearch:' + title, duration=duration)
         await ctx.send(embed=self.get_music_ui().embed_song_added(title))
         if not self.current_song:
