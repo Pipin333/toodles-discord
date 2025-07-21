@@ -3,7 +3,7 @@ from discord.ext import commands
 import logging
 import os
 import asyncio
-from sznUtils import save_config, load_config, is_json_cookies, json_to_netscape, check_cookies_format
+from sznUtils import save_config, load_config, is_json_cookies, json_to_netscape, check_cookies_format, get_active_cookie_file
 from cryptography.fernet import Fernet
 import traceback
 
@@ -46,41 +46,36 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-
 @bot.command()
-async def setcookies(ctx):
-    """Carga cookies desde mensaje o archivo y las convierte si es necesario."""
-    if ctx.message.attachments:
-        attachment = ctx.message.attachments[0]
-        content = await attachment.read()
-        content = content.decode('utf-8')
-    else:
-        content = ctx.message.content.replace("td?setcookies", "").strip()
+@commands.has_permissions(administrator=True)
+async def setcookies(ctx, *, cookies_text: str):
+    from sznUtils import save_config, save_temp_cookie, is_json_cookies, json_to_netscape, check_cookies_format
+    music = bot.get_cog("sznMusic")
 
-    if content.lower().startswith("cookies ="):
-        content = content[len("cookies ="):].strip()
-
-    if is_json_cookies(content):
-        try:
-            content = json_to_netscape(content)
-            await ctx.send("🔁 Cookies JSON convertidas a formato Netscape.")
-        except Exception as e:
-            await ctx.send(f"❌ Error al convertir cookies: {e}")
-            return
-
-    # Validar formato antes de guardar
-    check = check_cookies_format(content)
-    if not check.startswith("✅"):
-        await ctx.send(check)
+    if not music:
+        await ctx.send("❌ Módulo de música no disponible.")
         return
-    
-    save_config("cookies", content)
-    os.environ["cookies"] = content
 
-    # Reaplicar en runtime
-    music = bot.get_cog("MusicCore")
-    if music:
-        music.cookie_file = music.setup_cookies()
+    # Validar si viene en JSON
+    if is_json_cookies(cookies_text):
+        cookies_text = json_to_netscape(cookies_text)
+
+    formato_resultado = check_cookies_format(cookies_text)
+    if not formato_resultado.startswith("✅"):
+        await ctx.send(f"❌ Error de formato: {formato_resultado}")
+        return
+
+    # Guardar como cookie persistente si es admin
+    if ctx.author.guild_permissions.administrator:
+        save_config("default_cookie", cookies_text)
+        await ctx.send("✅ Cookies persistentes actualizadas correctamente.")
+    else:
+        save_temp_cookie(cookies_text)
+        await ctx.send("✅ Cookies temporales cargadas por 6 horas.")
+
+    # Refrescar la cookie activa del cog de música
+    music.cookie_file = get_active_cookie_file()
+    await ctx.send("♻️ Cookie activa recargada.")
 
 async def load_cogs():
     """Load cogs in the correct order to resolve dependencies."""
