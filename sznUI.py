@@ -37,6 +37,10 @@ class MusicUI(commands.Cog):
         view = self.MusicControls(core, ctx)
         await ctx.send("🎛️ Controles de reproducción:", view=view, delete_after=300)
 
+    class MusicUI(commands.Cog):
+        async def create_search_results_view(self, ctx, results, core):
+            return SearchResultsView(ctx, results, core)
+
     class MusicControls(View):
         def __init__(self, core, ctx):
             super().__init__(timeout=300)

@@ -22,6 +22,7 @@ class MusicCore(commands.Cog):
         self.radio_seed_id = None
         self.radio_mode = False
         self.radio_temperature = 0.75
+        self.MusicUI = bot.get_cog("sznUI")
 
         try:
             print("🔁 Iniciando conexión con Spotify...")
@@ -58,10 +59,15 @@ class MusicCore(commands.Cog):
         hours, remainder = divmod(duration, 3600)
         minutes, seconds = divmod(remainder, 60)
         return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+    
+    def get_music_ui(self):
+        if not self.MusicUI:
+            self.MusicUI = self.bot.get_cog("sznUI")
+        return self.MusicUI    
 
     async def connect_to_voice(self, ctx):
         if not ctx.author.voice:
-            await ctx.send(embed=MusicUI.embed_simple_message(self, "Debes estar en un canal de voz para usar este comando."))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "Debes estar en un canal de voz para usar este comando."))
             return None
         if not self.voice_client:
             self.voice_client = await ctx.author.voice.channel.connect()
@@ -71,7 +77,7 @@ class MusicCore(commands.Cog):
         song = {'title': title, 'url': url, 'duration': duration, 'origin': origin}
         self.queue_manager.add_song(song)
         add_or_update_song(title, url or 'ytsearch:' + title, duration=duration)
-        await ctx.send(embed=MusicUI.embed_song_added(self, title))
+        await ctx.send(embed=self.get_music_ui().embed_song_added(title))
         if not self.current_song:
             await self.play_next(ctx)
 
@@ -88,12 +94,13 @@ class MusicCore(commands.Cog):
     async def search(self, ctx, *, query):
         results = await self.search_youtube(query, max_results=5)
         if not results:
-            await ctx.send(embed=MusicUI.embed_simple_message(self, "❌ No se encontraron resultados."))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "❌ No se encontraron resultados."))
             return
 
-        from sznUI import SearchResultsView
-        view = SearchResultsView(ctx, results, self)
-        await ctx.send("🔎 Selecciona una canción para añadirla a la cola:", view=view)
+        ui = self.get_music_ui()
+        if ui:
+            view = await ui.create_search_results_view(ctx, results, self)
+            await ctx.send("🔎 Selecciona una canción para añadirla a la cola:", view=view)
 
     async def handle_search_selection(self, ctx, info, origin="🎯 Seleccionada desde búsqueda"):
         await self.connect_to_voice(ctx)
@@ -135,12 +142,12 @@ class MusicCore(commands.Cog):
                 await self.expand_radio_queue(ctx)
                 next_song = self.queue_manager.get_next_song()
             if not next_song:
-                await ctx.send(embed=MusicUI.embed_simple_message(self, "La cola está vacía."))
+                await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "La cola está vacía."))
                 self.current_song = None
                 return
 
         self.current_song = next_song
-        ui = self.bot.get_cog("MusicUI")
+        ui = self.get_music_ui()
         if ui:
             await ui.notify_now_playing(ctx, self.current_song['title'], self.current_song.get('origin'))
 
@@ -175,21 +182,21 @@ class MusicCore(commands.Cog):
     async def pause(self, ctx):
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.pause()
-            await ctx.send(embed=MusicUI.embed_simple_message(self, "⏸️ Canción pausada."))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "⏸️ Canción pausada."))
 
     @commands.command()
     async def resume(self, ctx):
         if self.voice_client and self.voice_client.is_paused():
             self.voice_client.resume()
-            await ctx.send(embed=MusicUI.embed_simple_message(self, "▶️ Canción reanudada."))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "▶️ Canción reanudada."))
 
     @commands.command(name="np")
     async def now_playing(self, ctx):
         if self.current_song:
             duration_str = self.format_duration(self.current_song.get('duration', 0))
-            await ctx.send(embed=MusicUI.embed_simple_message(self, f"🎵 Reproduciendo: **{self.current_song['title']}** ({duration_str})"))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, f"🎵 Reproduciendo: **{self.current_song['title']}** ({duration_str})"))
         else:
-            await ctx.send(embed=MusicUI.embed_simple_message(self, "No hay ninguna canción en reproducción."))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "No hay ninguna canción en reproducción."))
 
     @tasks.loop(seconds=60)
     async def inactivity_check(self):
@@ -204,30 +211,30 @@ class MusicCore(commands.Cog):
         if arg.lower() == "off":
             self.radio_mode = False
             self.radio_seed_id = None
-            await ctx.send(embed=MusicUI.embed_simple_message(self, "🛑 Modo radio desactivado."))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "🛑 Modo radio desactivado."))
             return
 
         try:
             temperatura = float(arg)
         except ValueError:
-            await ctx.send(embed=MusicUI.embed_simple_message(self, "❌ Parámetro inválido. Usa un número entre 0.0 y 1.0 o 'off'."))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "❌ Parámetro inválido. Usa un número entre 0.0 y 1.0 o 'off'."))
             return
 
         if not self.current_song:
-            await ctx.send(embed=MusicUI.embed_simple_message(self, "No hay ninguna canción reproduciéndose para iniciar el modo radio."))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "No hay ninguna canción reproduciéndose para iniciar el modo radio."))
             return
 
         title = self.current_song['title']
         results = self.sp.search(q=title, type='track', limit=1)
         items = results.get('tracks', {}).get('items', [])
         if not items or not items[0].get('id'):
-            await ctx.send(embed=MusicUI.embed_simple_message(self, "No se encontró un track válido para generar recomendaciones."))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "No se encontró un track válido para generar recomendaciones."))
             return
 
         self.radio_seed_id = items[0]['id']
         self.radio_mode = True
         self.radio_temperature = max(0.0, min(temperatura, 1.0))
-        await ctx.send(embed=MusicUI.embed_simple_message(self, f"🔁 Modo radio activado (temperatura {self.radio_temperature:.2f}). Se mantendrá la cola con canciones similares."))
+        await ctx.send(embed=self.get_music_ui().embed_simple_message(self, f"🔁 Modo radio activado (temperatura {self.radio_temperature:.2f}). Se mantendrá la cola con canciones similares."))
         await self.expand_radio_queue(ctx)
 
     async def expand_radio_queue(self, ctx, seed_id=None, temperature=0.75):
@@ -235,7 +242,7 @@ class MusicCore(commands.Cog):
             if not seed_id:
                 seed_id = self.radio_seed_id
             if not seed_id:
-                await ctx.send(embed=MusicUI.embed_simple_message(self, "❌ No hay una canción base para generar recomendaciones."))
+                await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "❌ No hay una canción base para generar recomendaciones."))
                 return
 
             recs = self.sp.recommendations(
@@ -246,10 +253,10 @@ class MusicCore(commands.Cog):
             )
 
             if not recs.get('tracks'):
-                await ctx.send(embed=MusicUI.embed_simple_message(self, "Spotify no pudo generar recomendaciones con esta canción."))
+                await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "Spotify no pudo generar recomendaciones con esta canción."))
                 return
 
-            await ctx.send(embed=MusicUI.embed_simple_message(self, "🎧 Añadiendo canciones sugeridas al modo radio..."))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "🎧 Añadiendo canciones sugeridas al modo radio..."))
 
             for track in recs['tracks']:
                 title = track['name']
@@ -258,7 +265,7 @@ class MusicCore(commands.Cog):
                 await self.add_from_youtube(ctx, query)
 
         except Exception as e:
-            await ctx.send(embed=MusicUI.embed_simple_message(self, f"⚠️ Error al expandir la cola de radio: {e}"))
+            await ctx.send(embed=self.get_music_ui().embed_simple_message(self, f"⚠️ Error al expandir la cola de radio: {e}"))
 
 print("🧪 Ejecutando setup() de sznMusic")
 

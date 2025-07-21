@@ -82,31 +82,42 @@ async def setcookies(ctx):
     if music:
         music.cookie_file = music.setup_cookies()
 
-async def main():
-
-    cookies = load_config("cookies")
-    if cookies:
-        os.environ["cookies"] = cookies
-        print("🔐 Cookies cargadas desde la base de datos.")
-
+async def load_cogs():
+    """Load cogs in the correct order to resolve dependencies."""
     try:
-
+        # Load database cog first (no dependencies)
         await bot.load_extension('sznDB')
         print("🧠 Cog 'sznDB' cargado.")
 
+        # Load queue cog (no dependencies)
         await bot.load_extension('sznQueue')
         print("🎛️ Cog 'sznQueue' cargado.")
 
+        # Load UI cog (used by sznMusic)
         await bot.load_extension('sznUI')
         print("🎛️ Cog 'sznUI' cargado.")
 
-        await bot.load_extension('sznMusic')
+        # Load music cog (depends on sznUI)
+        music_cog = MusicCore(bot)
+        ui_cog = bot.get_cog("sznUI")
+        if ui_cog:
+            music_cog.MusicUI = ui_cog  # Inject dependency
+        await bot.add_cog(music_cog)
         print("🎵 Cog 'sznMusic' cargado.")
 
     except Exception as e:
         print(f"❌ Error al cargar cogs: {e.__class__.__name__}: {e}")
         traceback.print_exc()
-        
+
+async def main():
+    """Main entry point for the bot."""
+    cookies = load_config("cookies")
+    if cookies:
+        os.environ["cookies"] = cookies
+        print("🔐 Cookies cargadas desde la base de datos.")
+
+    await load_cogs()  # Load cogs in the correct order
+
     token = os.getenv("token_priv")
     if token:
         await bot.start(token)
