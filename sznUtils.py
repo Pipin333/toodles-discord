@@ -2,9 +2,18 @@ import json
 from cryptography.fernet import Fernet
 from database import Session, AppConfig
 import os
+import tempfile
+from datetime import datetime, timedelta
 
 FERNET_KEY = os.getenv("FERNET_KEY")
 fernet = Fernet(FERNET_KEY) if FERNET_KEY else None
+
+# Variables temporales en memoria (solo para esta sesión de bot)
+TEMP_COOKIE_CACHE = {
+    "expires_at": None,
+    "file_path": None,
+    "content": None,
+}
 
 def save_config(key: str, value: str):
     if fernet:
@@ -29,18 +38,13 @@ def load_config(key: str) -> str | None:
             return entry.value
     return None
 
-
 def is_json_cookies(content: str) -> bool:
     """Detecta si el contenido tiene un array JSON de cookies, incluso con encabezado 'cookies ='"""
     cleaned = content.strip()
-
-    # Elimina encabezado tipo 'cookies ='
     if cleaned.lower().startswith("cookies ="):
         cleaned = cleaned[len("cookies ="):].strip()
-
-    # Heurística simple: empieza con [ y contiene "name"
     return cleaned.startswith("[") and '"name"' in cleaned
-    
+
 def json_to_netscape(cookies_json: str) -> str:
     """Convierte JSON de cookies a formato Netscape"""
     try:
@@ -74,3 +78,38 @@ def check_cookies_format(text: str) -> str:
     if any(line.strip().startswith("{") or "[" in line for line in lines):
         return "❌ Aún contiene JSON, no está convertido."
     return "✅ Formato Netscape válido."
+
+def save_temp_cookie(content: str) -> str:
+    """Guarda cookie temporal con vencimiento de 6 horas"""
+    try:
+        temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt', newline='\n')
+        temp.write(content)
+        temp.close()
+        TEMP_COOKIE_CACHE["file_path"] = temp.name
+        TEMP_COOKIE_CACHE["content"] = content
+        TEMP_COOKIE_CACHE["expires_at"] = datetime.utcnow() + timedelta(hours=6)
+        print(f"🍪 Cookie temporal guardada. Expira a las {TEMP_COOKIE_CACHE['expires_at']}")
+        return temp.name
+    except Exception as e:
+        print(f"❌ Error al guardar cookie temporal: {e}")
+        return None
+
+def get_active_cookie_file() -> str | None:
+    """Devuelve la ruta a la cookie activa (temporal válida o persistente)"""
+    now = datetime.utcnow()
+    if TEMP_COOKIE_CACHE["file_path"] and TEMP_COOKIE_CACHE["expires_at"] and TEMP_COOKIE_CACHE["expires_at"] > now:
+        return TEMP_COOKIE_CACHE["file_path"]
+    # fallback a persistente
+    persisted = load_config("default_cookie")
+    if not persisted:
+        print("⚠️ No hay cookies persistentes disponibles.")
+        return None
+    try:
+        temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt', newline='\n')
+        temp.write(persisted)
+        temp.close()
+        print(f"🍪 Usando cookie persistente: {temp.name}")
+        return temp.name
+    except Exception as e:
+        print(f"❌ Error al restaurar cookie persistente: {e}")
+        return None

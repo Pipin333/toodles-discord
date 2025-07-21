@@ -22,6 +22,12 @@ class MusicUI(commands.Cog):
             embed.set_footer(text="Usa los botones para controlar la música o revisa la cola.")
         await ctx.send(embed=embed, view=view, delete_after=300)
 
+    def embed_song_added(self, title):
+        return discord.Embed(description=f"🎶 Añadido a la cola: **{title}**", color=discord.Color.green())
+
+    def embed_simple_message(self, text, color=discord.Color.green()):
+        return discord.Embed(description=text, color=color)
+
     @commands.command()
     async def controls(self, ctx):
         core = self.bot.get_cog("MusicCore")
@@ -51,7 +57,7 @@ class MusicUI(commands.Cog):
 
         @discord.ui.button(label="⏭️ Saltar", style=discord.ButtonStyle.secondary)
         async def skip(self, interaction: discord.Interaction, button: Button):
-            if self.core.song_queue:
+            if self.core.queue_manager.view_queue():
                 self.core.voice_client.stop()
                 await self.core.play_next(self.ctx)
                 await interaction.response.send_message("⏭️ Canción saltada.", ephemeral=True)
@@ -63,7 +69,7 @@ class MusicUI(commands.Cog):
             if self.core.voice_client:
                 await self.core.voice_client.disconnect()
                 self.core.voice_client = None
-                self.core.song_queue.clear()
+                self.core.queue_manager.clear_queue()
                 self.core.current_song = None
                 await interaction.response.send_message("⏹️ Reproducción detenida y desconectado.", ephemeral=True)
             else:
@@ -72,18 +78,19 @@ class MusicUI(commands.Cog):
     @commands.command()
     async def queueui(self, ctx):
         core = self.bot.get_cog("MusicCore")
-        if not core or not core.song_queue:
+        if not core or not core.queue_manager.view_queue():
             await ctx.send("📭 La cola está vacía.")
             return
 
+        queue = core.queue_manager.view_queue()
         items_per_page = 10
-        total_pages = (len(core.song_queue) + items_per_page - 1) // items_per_page
+        total_pages = (len(queue) + items_per_page - 1) // items_per_page
         current_page = 0
 
         def get_page_content(page):
             start = page * items_per_page
             end = start + items_per_page
-            songs = core.song_queue[start:end]
+            songs = queue[start:end]
             content = f"**🎵 Cola de canciones (página {page + 1}/{total_pages}):**\n"
             for i, song in enumerate(songs, start=start + 1):
                 content += f"{i}. **{song['title']}**\n"

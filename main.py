@@ -94,11 +94,14 @@ async def main():
         await bot.load_extension('sznDB')
         print("🧠 Cog 'sznDB' cargado.")
 
-        await bot.load_extension('sznMusic')
-        print("🎵 Cog 'sznMusic' cargado.")
+        await bot.load_extension('sznQueue')
+        print("🎛️ Cog 'sznQueue' cargado.")
 
         await bot.load_extension('sznUI')
         print("🎛️ Cog 'sznUI' cargado.")
+
+        await bot.load_extension('sznMusic')
+        print("🎵 Cog 'sznMusic' cargado.")
 
     except Exception as e:
         print(f"❌ Error al cargar cogs: {e.__class__.__name__}: {e}")
