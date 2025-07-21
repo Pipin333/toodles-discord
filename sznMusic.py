@@ -142,11 +142,11 @@ class MusicCore(commands.Cog):
             await self.add_from_youtube(ctx, query, origin=f"🎵 Pedida desde playlist por {ctx.author.name}")
 
     async def play_next(self, ctx):
-        next_song = self.queue_manager.get_next_song()
+        next_song = self.get_queue_manager.get_next_song()
         if not next_song:
             if self.radio_mode and self.radio_seed_id:
                 await self.expand_radio_queue(ctx)
-                next_song = self.queue_manager.get_next_song()
+                next_song = self.get_queue_manager.get_next_song()
             if not next_song:
                 await ctx.send(embed=self.get_music_ui().embed_simple_message(self, "La cola está vacía."))
                 self.current_song = None
@@ -206,7 +206,7 @@ class MusicCore(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def inactivity_check(self):
-        if self.voice_client and not self.voice_client.is_playing() and not self.queue_manager.view_queue():
+        if self.voice_client and not self.voice_client.is_playing() and not self.get_queue_manager.view_queue():
             await self.voice_client.disconnect()
             self.voice_client = None
             self.current_song = None

@@ -61,7 +61,7 @@ class MusicUI(commands.Cog):
 
         @discord.ui.button(label="⏭️ Saltar", style=discord.ButtonStyle.secondary)
         async def skip(self, interaction: discord.Interaction, button: Button):
-            if self.core.queue_manager.view_queue():
+            if self.core.get_queue_manager().view_queue():
                 self.core.voice_client.stop()
                 await self.core.play_next(self.ctx)
                 await interaction.response.send_message("⏭️ Canción saltada.", ephemeral=True)
@@ -73,7 +73,7 @@ class MusicUI(commands.Cog):
             if self.core.voice_client:
                 await self.core.voice_client.disconnect()
                 self.core.voice_client = None
-                self.core.queue_manager.clear_queue()
+                self.core.get_queue_manager().clear_queue()
                 self.core.current_song = None
                 await interaction.response.send_message("⏹️ Reproducción detenida y desconectado.", ephemeral=True)
             else:
@@ -82,11 +82,11 @@ class MusicUI(commands.Cog):
     @commands.command()
     async def queueui(self, ctx):
         core = self.bot.get_cog("MusicCore")
-        if not core or not core.queue_manager.view_queue():
+        if not core or not core.get_queue_manager().view_queue():
             await ctx.send("📭 La cola está vacía.")
             return
 
-        queue = core.queue_manager.view_queue()
+        queue = core.get_queue_manager.view_queue()
         items_per_page = 10
         total_pages = (len(queue) + items_per_page - 1) // items_per_page
         current_page = 0
