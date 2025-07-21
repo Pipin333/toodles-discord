@@ -98,11 +98,7 @@ async def load_cogs():
         print("🎛️ Cog 'sznUI' cargado.")
 
         # Load music cog (depends on sznUI)
-        music_cog = MusicCore(bot)
-        ui_cog = bot.get_cog("sznUI")
-        if ui_cog:
-            music_cog.MusicUI = ui_cog  # Inject dependency
-        await bot.add_cog(music_cog)
+        await bot.load_extension('sznMusic')  # Load MusicCore as a cog
         print("🎵 Cog 'sznMusic' cargado.")
 
     except Exception as e:
