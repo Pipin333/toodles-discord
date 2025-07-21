@@ -64,6 +64,9 @@ class QueueManagerCog(commands.Cog):
         self.bot = bot
         self.queue_manager = QueueManager()
 
+    def add_song(self, song):
+        return self.QueueManager.add_song(song)
+
     @commands.command(name="queue")
     async def view_queue(self, ctx):
         songs = self.queue_manager.view_queue()
