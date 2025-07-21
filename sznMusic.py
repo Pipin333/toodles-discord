@@ -56,9 +56,9 @@ class MusicCore(commands.Cog):
         }
     
     def get_queue_manager(self):
-        qm = self.bot.get_cog("QueueManagerCog")
+        qm = self.bot.get_cog("sznQueue")
         if not qm:
-            raise RuntimeError("❌ QueueManagerCog no está disponible.")
+            raise RuntimeError("❌ sznQueue no está disponible.")
         return qm
 
     def format_duration(self, duration):
